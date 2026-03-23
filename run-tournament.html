@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Run tournament — Lacoste Tennis Tournaments</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="admin-mode">
+  <header>
+    <nav>
+      <h1 class="logo">Run tournament</h1>
+      <ul>
+        <li><a href="admin.html">Admin</a></li>
+        <li><a href="index.html" class="nav-view-link">View public page</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero hero-compact">
+      <div class="hero-content">
+        <h2>Run tournament</h2>
+        <p class="tagline">Group phase & knockout phase</p>
+      </div>
+    </section>
+
+    <section class="section cloud-sync-panel" id="cloud-live">
+      <h2>Live results (cloud)</h2>
+      <p class="cloud-sync-help">Uses Supabase + Netlify. Configure <code>js/cloud-config.js</code> and follow <a href="CLOUD-SETUP.md">CLOUD-SETUP.md</a>.</p>
+      <p id="cloud-status-line" class="cloud-status-line" aria-live="polite"></p>
+      <div class="cloud-sync-actions">
+        <label for="cloud-admin-password">Admin password (same as Netlify <code>ADMIN_SAVE_PASSWORD</code>):</label>
+        <div class="cloud-sync-row">
+          <input type="password" id="cloud-admin-password" autocomplete="off" placeholder="Required for push">
+          <button type="button" id="cloud-save-pw" class="btn-cloud">Save password</button>
+          <button type="button" id="cloud-pull" class="btn-cloud">Pull now</button>
+          <button type="button" id="cloud-push" class="btn-cloud">Push now</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="phase-selector">
+        <label for="phase-select">Phase:</label>
+        <select id="phase-select" aria-label="Select phase">
+          <option value="group">Group phase</option>
+          <option value="knockout">Knockout phase</option>
+        </select>
+      </div>
+
+      <!-- Group phase panel -->
+      <div id="group-phase-panel" class="phase-panel">
+        <h2>Group phase — choose category & group</h2>
+        <div class="run-tournament-filters">
+          <div class="filter-row">
+            <label for="run-category-select">Category:</label>
+            <select id="run-category-select" aria-label="Select category">
+              <option value="advanced">Advanced</option>
+              <option value="intermediate">Intermediate</option>
+              <option value="beginners">Beginners</option>
+            </select>
+          </div>
+          <div class="filter-row">
+            <label for="run-group-select">Group:</label>
+            <select id="run-group-select" aria-label="Select group">
+              <option value="all">All groups</option>
+              <option value="1">Group 1</option>
+              <option value="2">Group 2</option>
+              <option value="3">Group 3</option>
+            </select>
+          </div>
+        </div>
+        <div id="run-category-label" class="run-category-label" aria-live="polite"></div>
+        <div id="groups-container" class="groups-container"></div>
+      </div>
+
+      <!-- Knockout phase panel -->
+      <div id="knockout-phase-panel" class="phase-panel hidden">
+        <h2>Knockout phase — choose category</h2>
+        <div class="run-tournament-filters">
+          <div class="filter-row">
+            <label for="knockout-category-select">Category:</label>
+            <select id="knockout-category-select" aria-label="Select category for knockout">
+              <option value="advanced">Advanced</option>
+              <option value="intermediate">Intermediate</option>
+              <option value="beginners">Beginners</option>
+            </select>
+          </div>
+        </div>
+        <div id="knockout-container" class="knockout-container"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p><a href="admin.html">Back to Admin</a> · <a href="index.html" class="footer-view-link">View public page</a></p>
+    <p>&copy; Tennis League Cyprus</p>
+  </footer>
+
+  <script src="js/cloud-config.js"></script>
+  <script src="js/cloud-sync.js"></script>
+  <script>
+    (function () {
+      /** Public read-only mode: run-tournament.html?view=1 (no score/time edits). */
+      var VIEW_ONLY = new URLSearchParams(location.search).get('view') === '1';
+      if (VIEW_ONLY) {
+        document.body.className = 'view-mode';
+        var logoEl = document.querySelector('header .logo');
+        if (logoEl) logoEl.textContent = 'Tournament progress';
+        var navUl = document.querySelector('header nav ul');
+        if (navUl) {
+          navUl.innerHTML = '<li><a href="index.html">Home</a></li>';
+        }
+        var heroH2 = document.querySelector('.hero-compact h2');
+        var heroTag = document.querySelector('.hero-compact .tagline');
+        if (heroH2) heroH2.textContent = 'Tournament progress';
+        if (heroTag) heroTag.textContent = 'Standings, schedule & knockout';
+        var footFirst = document.querySelector('footer p');
+        if (footFirst) {
+          footFirst.innerHTML = '<a href="index.html">Home</a> · Organised by Tennis League Cyprus';
+        }
+      }
+
+      var STORAGE_KEY = 'lagoste_tennis_players';
+      var MATCHES_KEY = 'lagoste_group_matches';
+      var THIRD_TIEBREAK_KEY = 'lagoste_third_tiebreak';
+      var TOTAL_PLAYERS = 12;
+      var NUM_GROUPS = 3;
+      var PLAYERS_PER_GROUP = 4;
+      var categorySelect = document.getElementById('run-category-select');
+      var groupSelect = document.getElementById('run-group-select');
+      var categoryLabel = document.getElementById('run-category-label');
+      var container = document.getElementById('groups-container');
+      var phaseSelect = document.getElementById('phase-select');
+      var groupPanel = document.getElementById('group-phase-panel');
+      var knockoutPanel = document.getElementById('knockout-phase-panel');
+      var knockoutCategorySelect = document.getElementById('knockout-category-select');
+      var knockoutContainer = document.getElementById('knockout-container');
+
+      function scheduleCloudPush() {
+        try {
+          if (
+            !VIEW_ONLY &&
+            window.LagosteCloud &&
+            window.LagosteCloud.cloudEnabled &&
+            window.LagosteCloud.cloudEnabled()
+          ) {
+            window.LagosteCloud.schedulePush(window.LagosteCloud.getAdminPassword);
+          }
+        } catch (e) {}
+      }
+
+      var categoryNames = {
+        advanced: 'Advanced',
+        intermediate: 'Intermediate',
+        beginners: 'Beginners'
+      };
+
+      function getPlayersForCategory(category) {
+        try {
+          var saved = localStorage.getItem(STORAGE_KEY);
+          if (!saved) return [];
+          var data = JSON.parse(saved);
+          var list = data[category];
+          if (!Array.isArray(list)) return [];
+          return list.slice(0, TOTAL_PLAYERS).map(function (name) {
+            return (name && String(name).trim()) || '';
+          });
+        } catch (e) {
+          return [];
+        }
+      }
+
+      function buildGroups(players) {
+        var groups = [[], [], []];
+        for (var i = 0; i < players.length && i < TOTAL_PLAYERS; i++) {
+          var g = Math.floor(i / PLAYERS_PER_GROUP);
+          if (g < NUM_GROUPS) groups[g].push(players[i] || 'Player ' + (i + 1));
+        }
+        for (var g = 0; g < NUM_GROUPS; g++) {
+          while (groups[g].length < PLAYERS_PER_GROUP) {
+            groups[g].push('Player ' + (g * PLAYERS_PER_GROUP + groups[g].length + 1));
+          }
+        }
+        return groups;
+      }
+
+      function getRoundRobinMatches(players) {
+        var matches = [];
+        for (var i = 0; i < players.length; i++) {
+          for (var j = i + 1; j < players.length; j++) {
+            matches.push({ p1: players[i], p2: players[j] });
+          }
+        }
+        return matches;
+      }
+
+      function getGroupMatchResults(category, groupIndex) {
+        try {
+          var saved = localStorage.getItem(MATCHES_KEY);
+          if (!saved) return [];
+          var data = JSON.parse(saved);
+          var key = category + '_' + groupIndex;
+          return Array.isArray(data[key]) ? data[key] : [];
+        } catch (e) {
+          return [];
+        }
+      }
+
+      function headToHeadWinner(matchResults, playerA, playerB) {
+        for (var i = 0; i < matchResults.length; i++) {
+          var m = matchResults[i];
+          if (typeof m.s1 !== 'number' || typeof m.s2 !== 'number') continue;
+          if (m.p1 === playerA && m.p2 === playerB) {
+            if (m.s1 > m.s2) return 1;
+            if (m.s2 > m.s1) return -1;
+            return 0;
+          }
+          if (m.p1 === playerB && m.p2 === playerA) {
+            if (m.s2 > m.s1) return 1;
+            if (m.s1 > m.s2) return -1;
+            return 0;
+          }
+        }
+        return 0;
+      }
+
+      function computeStandings(players, matchResults) {
+        var stats = {};
+        players.forEach(function (p) {
+          stats[p] = { player: p, gp: 0, matchW: 0, matchL: 0, pw: 0, pl: 0 };
+        });
+        matchResults.forEach(function (m) {
+          var s1 = m.s1;
+          var s2 = m.s2;
+          if (typeof s1 !== 'number' || typeof s2 !== 'number') return;
+          var pl1 = m.p1;
+          var pl2 = m.p2;
+          if (stats[pl1]) {
+            stats[pl1].gp++;
+            stats[pl1].pw += s1;
+            stats[pl1].pl += s2;
+            if (s1 > s2) stats[pl1].matchW++; else stats[pl1].matchL++;
+          }
+          if (stats[pl2]) {
+            stats[pl2].gp++;
+            stats[pl2].pw += s2;
+            stats[pl2].pl += s1;
+            if (s2 > s1) stats[pl2].matchW++; else stats[pl2].matchL++;
+          }
+        });
+        var list = players.map(function (p) {
+          return stats[p] || { player: p, gp: 0, matchW: 0, matchL: 0, pw: 0, pl: 0 };
+        });
+        list.sort(function (a, b) {
+          if (b.matchW !== a.matchW) return b.matchW - a.matchW;
+          if (a.matchL !== b.matchL) return a.matchL - b.matchL;
+          var diffA = a.pw - a.pl;
+          var diffB = b.pw - b.pl;
+          if (diffB !== diffA) return diffB - diffA;
+          var h2h = headToHeadWinner(matchResults, a.player, b.player);
+          if (h2h !== 0) return -h2h;
+          return String(a.player).localeCompare(String(b.player));
+        });
+        return list;
+      }
+
+      function formatPointDiff(d) {
+        if (d > 0) return '+' + d;
+        return String(d);
+      }
+
+      function thirdPlaceAllTied(thirdsRanked) {
+        if (thirdsRanked.length !== 3) return false;
+        var a = thirdsRanked[0];
+        var b = thirdsRanked[1];
+        var c = thirdsRanked[2];
+        var da = a.pw - a.pl;
+        var db = b.pw - b.pl;
+        var dc = c.pw - c.pl;
+        return da === db && db === dc && a.matchW === b.matchW && b.matchW === c.matchW && a.matchL === b.matchL && b.matchL === c.matchL;
+      }
+
+      function getThirdTiebreakSchedule(sortedNames) {
+        var a = sortedNames[0];
+        var b = sortedNames[1];
+        var c = sortedNames[2];
+        return [{ p1: a, p2: b }, { p1: a, p2: c }, { p1: b, p2: c }];
+      }
+
+      function getThirdTiebreakStored(category) {
+        try {
+          var s = localStorage.getItem(THIRD_TIEBREAK_KEY);
+          if (!s) return [];
+          var data = JSON.parse(s);
+          return Array.isArray(data[category]) ? data[category] : [];
+        } catch (e) {
+          return [];
+        }
+      }
+
+      function saveThirdTiebreakMatch(category, matchIndex, p1, p2, s1, s2) {
+        try {
+          var s = localStorage.getItem(THIRD_TIEBREAK_KEY);
+          var data = s ? JSON.parse(s) : {};
+          if (!data[category]) data[category] = [];
+          while (data[category].length <= matchIndex) {
+            data[category].push({});
+          }
+          data[category][matchIndex] = { p1: p1, p2: p2, s1: s1, s2: s2 };
+          localStorage.setItem(THIRD_TIEBREAK_KEY, JSON.stringify(data));
+          scheduleCloudPush();
+        } catch (e) {}
+      }
+
+      function resolveThirdPlaceQualifiers(category, thirdsRanked, allGlobalComplete) {
+        var bestThirdNames = {};
+        var tieActive = false;
+        var tiePlayersSorted = [];
+        var tiebreakComplete = false;
+        var thirdsRankedDisplay = thirdsRanked.slice();
+
+        if (!allGlobalComplete || thirdsRanked.length < 2) {
+          return { bestThirdNames: bestThirdNames, tieActive: tieActive, tiePlayersSorted: tiePlayersSorted, tiebreakComplete: tiebreakComplete, thirdsRankedDisplay: thirdsRankedDisplay };
+        }
+
+        if (thirdsRanked.length === 3 && thirdPlaceAllTied(thirdsRanked)) {
+          tieActive = true;
+          tiePlayersSorted = thirdsRanked.map(function (x) { return x.player; }).sort(function (a, b) { return String(a).localeCompare(String(b)); });
+          var scheduleTB = getThirdTiebreakSchedule(tiePlayersSorted);
+          var stored = getThirdTiebreakStored(category);
+          var matchResults = [];
+          for (var i = 0; i < 3; i++) {
+            var sch = scheduleTB[i];
+            var rec = stored[i] || {};
+            matchResults.push({
+              p1: sch.p1,
+              p2: sch.p2,
+              s1: typeof rec.s1 === 'number' ? rec.s1 : null,
+              s2: typeof rec.s2 === 'number' ? rec.s2 : null
+            });
+          }
+          tiebreakComplete = matchResults.every(function (m) {
+            return typeof m.s1 === 'number' && typeof m.s2 === 'number';
+          });
+
+          if (tiebreakComplete) {
+            var mini = computeStandings(tiePlayersSorted.slice(), matchResults);
+            thirdsRankedDisplay = mini.map(function (row) {
+              var orig = thirdsRanked.filter(function (x) { return x.player === row.player; })[0];
+              return {
+                player: row.player,
+                matchW: orig.matchW,
+                matchL: orig.matchL,
+                pw: orig.pw,
+                pl: orig.pl,
+                groupIndex: orig.groupIndex,
+                tiebreakPw: row.pw,
+                tiebreakPl: row.pl
+              };
+            });
+            bestThirdNames[mini[0].player] = true;
+            bestThirdNames[mini[1].player] = true;
+          }
+          return { bestThirdNames: bestThirdNames, tieActive: tieActive, tiePlayersSorted: tiePlayersSorted, tiebreakComplete: tiebreakComplete, thirdsRankedDisplay: thirdsRankedDisplay };
+        }
+
+        for (var t = 0; t < 2; t++) {
+          bestThirdNames[thirdsRanked[t].player] = true;
+        }
+        return { bestThirdNames: bestThirdNames, tieActive: tieActive, tiePlayersSorted: tiePlayersSorted, tiebreakComplete: tiebreakComplete, thirdsRankedDisplay: thirdsRankedDisplay };
+      }
+
+      function saveGroupMatchResult(category, groupIndex, matchIndex, s1, s2, p1, p2, time, court) {
+        try {
+          var saved = localStorage.getItem(MATCHES_KEY);
+          var data = saved ? JSON.parse(saved) : {};
+          var key = category + '_' + groupIndex;
+          if (!data[key]) data[key] = [];
+          while (data[key].length <= matchIndex) {
+            data[key].push({ p1: '', p2: '', s1: null, s2: null, time: null, court: null });
+          }
+          var rec = data[key][matchIndex] || {};
+          if (p1 !== undefined) rec.p1 = p1;
+          if (p2 !== undefined) rec.p2 = p2;
+          rec.s1 = s1;
+          rec.s2 = s2;
+          if (time !== undefined) rec.time = time;
+          if (arguments.length >= 9 && court !== undefined) {
+            rec.court = court === null || court === '' ? null : court;
+          }
+          data[key][matchIndex] = rec;
+          localStorage.setItem(MATCHES_KEY, JSON.stringify(data));
+          scheduleCloudPush();
+        } catch (e) {}
+      }
+
+      function normalizeCourt(c) {
+        if (c === 1 || c === 2 || c === 3) return c;
+        if (c === '1' || c === '2' || c === '3') return parseInt(c, 10);
+        return null;
+      }
+
+      function escapeHtml(text) {
+        var div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+      }
+
+      function getGroupPhaseState(category) {
+        var players = getPlayersForCategory(category);
+        var groups = buildGroups(players);
+        var gamesPerPlayer = PLAYERS_PER_GROUP > 1 ? PLAYERS_PER_GROUP - 1 : 0;
+        var standingsList = [];
+        var allGlobalComplete = true;
+        for (var g = 0; g < NUM_GROUPS; g++) {
+          var groupPlayers = groups[g];
+          var matchResults = getGroupMatchResults(category, g);
+          var scheduleMatches = getRoundRobinMatches(groupPlayers);
+          while (matchResults.length < scheduleMatches.length) {
+            var idx = matchResults.length;
+            matchResults.push({
+              p1: scheduleMatches[idx].p1,
+              p2: scheduleMatches[idx].p2,
+              s1: null,
+              s2: null,
+              time: null,
+              court: null
+            });
+          }
+          var standings = computeStandings(groupPlayers, matchResults);
+          standingsList[g] = standings;
+          var grpDone = groupPlayers.length === PLAYERS_PER_GROUP && standings.every(function (r) { return r.gp === gamesPerPlayer; });
+          if (!grpDone) allGlobalComplete = false;
+        }
+        var thirdsRanked = [];
+        var bestThirdNames = {};
+        if (allGlobalComplete) {
+          for (var g2 = 0; g2 < NUM_GROUPS; g2++) {
+            var row3 = standingsList[g2][2];
+            if (row3) {
+              thirdsRanked.push({
+                player: row3.player,
+                matchW: row3.matchW,
+                matchL: row3.matchL,
+                pw: row3.pw,
+                pl: row3.pl,
+                groupIndex: g2
+              });
+            }
+          }
+          thirdsRanked.sort(function (a, b) {
+            var diffA = a.pw - a.pl;
+            var diffB = b.pw - b.pl;
+            if (diffB !== diffA) return diffB - diffA;
+            if (b.matchW !== a.matchW) return b.matchW - a.matchW;
+            if (a.matchL !== b.matchL) return a.matchL - b.matchL;
+            return String(a.player).localeCompare(String(b.player));
+          });
+        }
+        var tieResolved = resolveThirdPlaceQualifiers(category, thirdsRanked, allGlobalComplete);
+        bestThirdNames = tieResolved.bestThirdNames;
+        var thirdsRankedDisplay = tieResolved.thirdsRankedDisplay;
+        return {
+          groups: groups,
+          standingsList: standingsList,
+          allGlobalComplete: allGlobalComplete,
+          thirdsRanked: thirdsRanked,
+          thirdsRankedDisplay: thirdsRankedDisplay,
+          bestThirdNames: bestThirdNames,
+          thirdTieActive: tieResolved.tieActive,
+          thirdTiebreakComplete: tieResolved.tiebreakComplete,
+          thirdTiePlayersSorted: tieResolved.tiePlayersSorted,
+          gamesPerPlayer: gamesPerPlayer
+        };
+      }
+
+      function renderGroupPhase() {
+        var category = categorySelect.value;
+        var groupFilter = groupSelect.value;
+        var categoryName = categoryNames[category] || category;
+        categoryLabel.textContent = categoryName;
+
+        var state = getGroupPhaseState(category);
+        var groups = state.groups;
+        var standingsList = state.standingsList;
+        var allGlobalComplete = state.allGlobalComplete;
+        var bestThirdNames = state.bestThirdNames;
+        var gamesPerPlayer = state.gamesPerPlayer;
+
+        var html = '';
+        for (var g = 0; g < NUM_GROUPS; g++) {
+          var show = groupFilter === 'all' || groupFilter === String(g + 1);
+          var groupClass = 'group-card' + (show ? '' : ' hidden');
+          var groupPlayers = groups[g];
+          var matchResults = getGroupMatchResults(category, g);
+          var scheduleMatches = getRoundRobinMatches(groupPlayers);
+          while (matchResults.length < scheduleMatches.length) {
+            var idx = matchResults.length;
+            matchResults.push({
+              p1: scheduleMatches[idx].p1,
+              p2: scheduleMatches[idx].p2,
+              s1: null,
+              s2: null,
+              time: null,
+              court: null
+            });
+          }
+          var standings = standingsList[g];
+          var allGroupComplete = groupPlayers.length === PLAYERS_PER_GROUP && standings.every(function (r) { return r.gp === gamesPerPlayer; });
+          var qualifiedClass = allGroupComplete ? ' has-qualified' : '';
+
+          html += '<div class="' + groupClass + '" data-group="' + (g + 1) + '">';
+          html += '<h3>Group ' + (g + 1) + '</h3>';
+
+          html += '<div class="group-standings-wrap">';
+          html += '<table class="standings-table' + qualifiedClass + '"><thead><tr><th>#</th><th>Player</th><th>GP</th><th title="Game points scored">W</th><th title="Game points conceded">L</th><th title="W minus L">Diff</th><th></th></tr></thead><tbody>';
+          for (var s = 0; s < standings.length; s++) {
+            var row = standings[s];
+            var diff = row.pw - row.pl;
+            var qual = '';
+            if (allGroupComplete && (s === 0 || s === 1)) {
+              qual = '<span class="qualified-badge">Qualified</span>';
+            } else if (allGlobalComplete && s === 2 && bestThirdNames[row.player]) {
+              qual = '<span class="qualified-badge qualified-badge-third">Qualified (best 3rd)</span>';
+            }
+            html += '<tr><td>' + (s + 1) + '</td><td>' + escapeHtml(row.player) + '</td><td>' + row.gp + '</td><td>' + row.pw + '</td><td>' + row.pl + '</td><td>' + formatPointDiff(diff) + '</td><td class="qual-cell">' + qual + '</td></tr>';
+          }
+          html += '</tbody></table></div>';
+
+          html += '<h4 class="schedule-heading">Schedule</h4>';
+          html += '<ul class="group-schedule-list">';
+          for (var m = 0; m < scheduleMatches.length; m++) {
+            var mt = scheduleMatches[m];
+            var res = matchResults[m] || {};
+            var v1 = typeof res.s1 === 'number' ? res.s1 : '';
+            var v2 = typeof res.s2 === 'number' ? res.s2 : '';
+            var timeVal = (res.time && String(res.time).trim()) ? String(res.time).substring(0, 5) : '';
+            var courtN = normalizeCourt(res.court);
+            var cat = category;
+            var gIdx = g;
+            var mIdx = m;
+            if (VIEW_ONLY) {
+              var disp1 = typeof res.s1 === 'number' ? String(res.s1) : '—';
+              var disp2 = typeof res.s2 === 'number' ? String(res.s2) : '—';
+              var timeDisp = timeVal ? escapeHtml(timeVal) : '—';
+              var courtDisp = courtN ? 'Court ' + courtN : '—';
+              html += '<li class="group-schedule-match group-schedule-match--readonly">';
+              html += '<span class="match-player">' + escapeHtml(mt.p1) + '</span>';
+              html += '<span class="match-score-readonly">';
+              html += '<span class="match-score-num">' + disp1 + '</span>';
+              html += '<span class="match-score-sep">–</span>';
+              html += '<span class="match-score-num">' + disp2 + '</span>';
+              html += '</span>';
+              html += '<span class="match-player">' + escapeHtml(mt.p2) + '</span>';
+              html += '<span class="match-time-readonly">' + timeDisp + '</span>';
+              html += '<span class="match-court-readonly">' + courtDisp + '</span>';
+              html += '</li>';
+            } else {
+              var cSel0 = !courtN ? ' selected' : '';
+              var cSel1 = courtN === 1 ? ' selected' : '';
+              var cSel2 = courtN === 2 ? ' selected' : '';
+              var cSel3 = courtN === 3 ? ' selected' : '';
+              html += '<li class="group-schedule-match">';
+              html += '<span class="match-player">' + escapeHtml(mt.p1) + '</span>';
+              html += '<span class="match-score-input-wrap">';
+              html += '<input type="number" min="0" class="match-score-input" data-cat="' + escapeHtml(cat) + '" data-g="' + gIdx + '" data-m="' + mIdx + '" data-side="1" value="' + v1 + '" placeholder="-" aria-label="Score ' + escapeHtml(mt.p1) + '">';
+              html += '<span class="match-score-sep">–</span>';
+              html += '<input type="number" min="0" class="match-score-input" data-cat="' + escapeHtml(cat) + '" data-g="' + gIdx + '" data-m="' + mIdx + '" data-side="2" value="' + v2 + '" placeholder="-" aria-label="Score ' + escapeHtml(mt.p2) + '">';
+              html += '</span>';
+              html += '<span class="match-player">' + escapeHtml(mt.p2) + '</span>';
+              html += '<span class="match-time-wrap"><input type="time" class="match-time-input" data-cat="' + escapeHtml(cat) + '" data-g="' + gIdx + '" data-m="' + mIdx + '" value="' + escapeHtml(timeVal) + '" placeholder="Time" aria-label="Scheduled time"></span>';
+              html += '<span class="match-court-wrap"><select class="match-court-select" data-cat="' + escapeHtml(cat) + '" data-g="' + gIdx + '" data-m="' + mIdx + '" aria-label="Court for this match">';
+              html += '<option value=""' + cSel0 + '>Court —</option>';
+              html += '<option value="1"' + cSel1 + '>Court 1</option>';
+              html += '<option value="2"' + cSel2 + '>Court 2</option>';
+              html += '<option value="3"' + cSel3 + '>Court 3</option>';
+              html += '</select></span>';
+              html += '</li>';
+            }
+          }
+          html += '</ul></div>';
+        }
+
+        html += '<div class="third-place-summary">';
+        html += '<h3>Best 3rd places (2 qualify for knockout)</h3>';
+        html += '<p class="third-place-help">After <strong>1st</strong> and <strong>2nd</strong> in each group qualify, the <strong>two best 3rd-place</strong> finishers qualify: <strong>highest Diff</strong> (W − L game points). If Diff is tied, then most match wins, then fewest match losses. If <strong>all three</strong> 3rd-place players are still tied, play the <strong>tie-break to 7</strong> below (round-robin; enter final scores e.g. 7–5).</p>';
+        if (!allGlobalComplete) {
+          html += '<p class="third-place-pending">Finish all group matches in every group to rank 3rd places and show who qualifies.</p>';
+        } else {
+          html += '<ol class="third-place-list">';
+          var list3 = state.thirdsRankedDisplay;
+          for (var r = 0; r < list3.length; r++) {
+            var tr = list3[r];
+            var tag = bestThirdNames[tr.player] ? ' <span class="qualified-badge qualified-badge-third">Qualifies</span>' : '';
+            var tieInfo = typeof tr.tiebreakPw === 'number' ? ' — tie-break pts ' + tr.tiebreakPw + '-' + tr.tiebreakPl + ' (Diff ' + formatPointDiff(tr.tiebreakPw - tr.tiebreakPl) + ')' : '';
+            html += '<li><strong>Group ' + (tr.groupIndex + 1) + '</strong>: ' + escapeHtml(tr.player) + ' — <strong>Diff ' + formatPointDiff(tr.pw - tr.pl) + '</strong> (pts ' + tr.pw + '-' + tr.pl + ', matches ' + tr.matchW + '-' + tr.matchL + ')' + tieInfo + tag + '</li>';
+          }
+          html += '</ol>';
+          if (state.thirdTieActive) {
+            html += '<div class="third-tiebreak-box">';
+            html += '<h4>3rd place tie-break (play to 7)</h4>';
+            if (!state.thirdTiebreakComplete) {
+              html += VIEW_ONLY
+                ? '<p class="third-tiebreak-note">Tie-break in progress — results will appear here when organisers enter them.</p>'
+                : '<p class="third-tiebreak-note">Enter the result of each tie-break match (first to <strong>7</strong> wins that match). All three matches are required.</p>';
+            } else {
+              html += '<p class="third-tiebreak-done">Tie-break complete. The two qualifiers are decided by tie-break standings (match wins, then game points, then head-to-head).</p>';
+            }
+            var schedTB = getThirdTiebreakSchedule(state.thirdTiePlayersSorted);
+            var storedTB = getThirdTiebreakStored(category);
+            for (var ti = 0; ti < 3; ti++) {
+              var mtb = schedTB[ti];
+              var rtb = storedTB[ti] || {};
+              var tv1 = typeof rtb.s1 === 'number' ? rtb.s1 : '';
+              var tv2 = typeof rtb.s2 === 'number' ? rtb.s2 : '';
+              if (VIEW_ONLY) {
+                var td1 = typeof rtb.s1 === 'number' ? String(rtb.s1) : '—';
+                var td2 = typeof rtb.s2 === 'number' ? String(rtb.s2) : '—';
+                html += '<div class="third-tiebreak-match third-tiebreak-match--readonly">';
+                html += '<span class="match-player">' + escapeHtml(mtb.p1) + '</span>';
+                html += '<span class="match-score-readonly">';
+                html += '<span class="match-score-num">' + td1 + '</span>';
+                html += '<span class="match-score-sep">–</span>';
+                html += '<span class="match-score-num">' + td2 + '</span>';
+                html += '</span>';
+                html += '<span class="match-player">' + escapeHtml(mtb.p2) + '</span>';
+                html += '</div>';
+              } else {
+                html += '<div class="third-tiebreak-match">';
+                html += '<span class="match-player">' + escapeHtml(mtb.p1) + '</span>';
+                html += '<span class="match-score-input-wrap">';
+                html += '<input type="number" min="0" max="20" class="third-tiebreak-score-input" data-cat="' + escapeHtml(category) + '" data-tb="' + ti + '" data-side="1" value="' + tv1 + '" placeholder="-" aria-label="Tie-break score ' + escapeHtml(mtb.p1) + '">';
+                html += '<span class="match-score-sep">–</span>';
+                html += '<input type="number" min="0" max="20" class="third-tiebreak-score-input" data-cat="' + escapeHtml(category) + '" data-tb="' + ti + '" data-side="2" value="' + tv2 + '" placeholder="-" aria-label="Tie-break score ' + escapeHtml(mtb.p2) + '">';
+                html += '</span>';
+                html += '<span class="match-player">' + escapeHtml(mtb.p2) + '</span>';
+                html += '</div>';
+              }
+            }
+            html += '</div>';
+          }
+        }
+        html += '</div>';
+
+        container.innerHTML = html;
+        if (!VIEW_ONLY) {
+          container.querySelectorAll('.match-score-input').forEach(function (input) {
+            input.addEventListener('change', function () {
+              var cat = input.getAttribute('data-cat');
+              var g = parseInt(input.getAttribute('data-g'), 10);
+              var m = parseInt(input.getAttribute('data-m'), 10);
+              var row = input.closest('.group-schedule-match');
+              var in1 = row.querySelector('.match-score-input[data-side="1"]');
+              var in2 = row.querySelector('.match-score-input[data-side="2"]');
+              var s1 = in1.value === '' ? null : parseInt(in1.value, 10);
+              var s2 = in2.value === '' ? null : parseInt(in2.value, 10);
+              if (isNaN(s1)) s1 = null;
+              if (isNaN(s2)) s2 = null;
+              var timeIn = row.querySelector('.match-time-input');
+              var timeVal = timeIn && timeIn.value ? timeIn.value : null;
+              var courtSel = row.querySelector('.match-court-select');
+              var courtVal = courtSel && courtSel.value !== '' ? parseInt(courtSel.value, 10) : null;
+              var groups = buildGroups(getPlayersForCategory(cat));
+              var scheduleMatches = getRoundRobinMatches(groups[g]);
+              var mt = scheduleMatches[m];
+              if (mt) {
+                saveGroupMatchResult(cat, g, m, s1, s2, mt.p1, mt.p2, timeVal, courtVal);
+                renderGroupPhase();
+              }
+            });
+          });
+          container.querySelectorAll('.match-time-input').forEach(function (input) {
+            input.addEventListener('change', function () {
+              var cat = input.getAttribute('data-cat');
+              var g = parseInt(input.getAttribute('data-g'), 10);
+              var m = parseInt(input.getAttribute('data-m'), 10);
+              var timeVal = input.value ? input.value : null;
+              var row = input.closest('.group-schedule-match');
+              var in1 = row.querySelector('.match-score-input[data-side="1"]');
+              var in2 = row.querySelector('.match-score-input[data-side="2"]');
+              var s1 = in1 && in1.value !== '' ? parseInt(in1.value, 10) : null;
+              var s2 = in2 && in2.value !== '' ? parseInt(in2.value, 10) : null;
+              if (isNaN(s1)) s1 = null;
+              if (isNaN(s2)) s2 = null;
+              var courtSel = row.querySelector('.match-court-select');
+              var courtVal = courtSel && courtSel.value !== '' ? parseInt(courtSel.value, 10) : null;
+              var groups = buildGroups(getPlayersForCategory(cat));
+              var scheduleMatches = getRoundRobinMatches(groups[g]);
+              var mt = scheduleMatches[m];
+              if (mt) {
+                saveGroupMatchResult(cat, g, m, s1, s2, mt.p1, mt.p2, timeVal, courtVal);
+                renderGroupPhase();
+              }
+            });
+          });
+          container.querySelectorAll('.match-court-select').forEach(function (sel) {
+            sel.addEventListener('change', function () {
+              var cat = sel.getAttribute('data-cat');
+              var g = parseInt(sel.getAttribute('data-g'), 10);
+              var m = parseInt(sel.getAttribute('data-m'), 10);
+              var courtVal = sel.value === '' ? null : parseInt(sel.value, 10);
+              var row = sel.closest('.group-schedule-match');
+              var in1 = row.querySelector('.match-score-input[data-side="1"]');
+              var in2 = row.querySelector('.match-score-input[data-side="2"]');
+              var s1 = in1 && in1.value !== '' ? parseInt(in1.value, 10) : null;
+              var s2 = in2 && in2.value !== '' ? parseInt(in2.value, 10) : null;
+              if (isNaN(s1)) s1 = null;
+              if (isNaN(s2)) s2 = null;
+              var timeIn = row.querySelector('.match-time-input');
+              var timeVal = timeIn && timeIn.value ? timeIn.value : null;
+              var groups = buildGroups(getPlayersForCategory(cat));
+              var scheduleMatches = getRoundRobinMatches(groups[g]);
+              var mt = scheduleMatches[m];
+              if (mt) {
+                saveGroupMatchResult(cat, g, m, s1, s2, mt.p1, mt.p2, timeVal, courtVal);
+                renderGroupPhase();
+              }
+            });
+          });
+          container.querySelectorAll('.third-tiebreak-score-input').forEach(function (input) {
+            input.addEventListener('change', function () {
+              var cat = input.getAttribute('data-cat');
+              var ti = parseInt(input.getAttribute('data-tb'), 10);
+              var row = input.closest('.third-tiebreak-match');
+              var in1 = row.querySelector('.third-tiebreak-score-input[data-side="1"]');
+              var in2 = row.querySelector('.third-tiebreak-score-input[data-side="2"]');
+              var s1 = in1.value === '' ? null : parseInt(in1.value, 10);
+              var s2 = in2.value === '' ? null : parseInt(in2.value, 10);
+              if (isNaN(s1)) s1 = null;
+              if (isNaN(s2)) s2 = null;
+              var st = getGroupPhaseState(cat);
+              if (!st.thirdTieActive || !st.thirdTiePlayersSorted.length) return;
+              var schedTB = getThirdTiebreakSchedule(st.thirdTiePlayersSorted);
+              var mtb = schedTB[ti];
+              if (mtb) {
+                saveThirdTiebreakMatch(cat, ti, mtb.p1, mtb.p2, s1, s2);
+                renderGroupPhase();
+              }
+            });
+          });
+        }
+      }
+
+      function getKnockoutEight(category) {
+        var state = getGroupPhaseState(category);
+        var list = [];
+        for (var g = 0; g < NUM_GROUPS; g++) {
+          var st = state.standingsList[g];
+          list.push({ p: st[0] ? st[0].player : 'Winner G' + (g + 1), g: g });
+          list.push({ p: st[1] ? st[1].player : 'Runner-up G' + (g + 1), g: g });
+        }
+        var bn = state.bestThirdNames || {};
+        var dis = state.thirdsRankedDisplay || [];
+        var added = 0;
+        if (state.allGlobalComplete) {
+          for (var i = 0; i < dis.length && added < 2; i++) {
+            if (bn[dis[i].player]) {
+              list.push({ p: dis[i].player, g: dis[i].groupIndex });
+              added++;
+            }
+          }
+        }
+        while (added < 2) {
+          list.push({ p: 'Best 3rd (pending)', g: -1 - added });
+          added++;
+        }
+        var thirdQualifiersReady = state.allGlobalComplete && (!state.thirdTieActive || state.thirdTiebreakComplete);
+        return { list: list, allComplete: state.allGlobalComplete, thirdQualifiersReady: thirdQualifiersReady };
+      }
+
+      function buildStructuredKnockoutQF(fullList) {
+        if (!fullList || fullList.length < 8) return [];
+        var W = [fullList[0], fullList[2], fullList[4]];
+        var R = [fullList[1], fullList[3], fullList[5]];
+        var T = [fullList[6], fullList[7]];
+        return [
+          [W[0], R[1]],
+          [W[1], R[2]],
+          [W[2], R[0]],
+          [T[0], T[1]]
+        ];
+      }
+
+      function renderKnockoutPhase() {
+        var category = knockoutCategorySelect.value;
+        var data = getKnockoutEight(category);
+        var qfPairs = buildStructuredKnockoutQF(data.list);
+
+        var html = '';
+        html += '<div class="knockout-round">';
+        html += '<h3 class="knockout-round-title">Quarter-finals</h3>';
+        html += '<div class="knockout-matches">';
+        for (var qi = 0; qi < qfPairs.length; qi++) {
+          var pr = qfPairs[qi];
+          html += '<div class="knockout-match"><span class="knockout-match-label">QF' + (qi + 1) + '</span>';
+          html += '<div class="knockout-match-slots"><div class="knockout-slot">' + escapeHtml(pr[0].p) + '</div><div class="knockout-vs">vs</div><div class="knockout-slot">' + escapeHtml(pr[1].p) + '</div></div></div>';
+        }
+        html += '</div></div>';
+
+        html += '<div class="knockout-round"><h3 class="knockout-round-title">Semi-finals</h3><div class="knockout-matches">';
+        html += '<div class="knockout-match"><span class="knockout-match-label">SF1</span><div class="knockout-match-slots"><div class="knockout-slot">Winner QF1</div><div class="knockout-vs">vs</div><div class="knockout-slot">Winner QF2</div></div></div>';
+        html += '<div class="knockout-match"><span class="knockout-match-label">SF2</span><div class="knockout-match-slots"><div class="knockout-slot">Winner QF3</div><div class="knockout-vs">vs</div><div class="knockout-slot">Winner QF4</div></div></div>';
+        html += '</div></div>';
+
+        html += '<div class="knockout-round"><h3 class="knockout-round-title">Final</h3><div class="knockout-matches">';
+        html += '<div class="knockout-match"><span class="knockout-match-label">Final</span><div class="knockout-match-slots"><div class="knockout-slot">Winner SF1</div><div class="knockout-vs">vs</div><div class="knockout-slot">Winner SF2</div></div></div>';
+        html += '</div></div>';
+
+        html += '<div class="knockout-round"><h3 class="knockout-round-title">Champion</h3><div class="knockout-champion">—</div></div>';
+        knockoutContainer.innerHTML = html;
+      }
+
+      function switchPhase() {
+        var phase = phaseSelect.value;
+        groupPanel.classList.toggle('hidden', phase !== 'group');
+        knockoutPanel.classList.toggle('hidden', phase !== 'knockout');
+        if (phase === 'knockout') renderKnockoutPhase();
+      }
+
+      phaseSelect.addEventListener('change', switchPhase);
+      categorySelect.addEventListener('change', renderGroupPhase);
+      groupSelect.addEventListener('change', renderGroupPhase);
+      knockoutCategorySelect.addEventListener('change', renderKnockoutPhase);
+
+      function bootRunTournament() {
+        renderGroupPhase();
+        switchPhase();
+      }
+
+      function wireRunTournamentCloudUi() {
+        var line = document.getElementById('cloud-status-line');
+        var pw = document.getElementById('cloud-admin-password');
+        var savePw = document.getElementById('cloud-save-pw');
+        var pullBtn = document.getElementById('cloud-pull');
+        var pushBtn = document.getElementById('cloud-push');
+        if (!line || !window.LagosteCloud) return;
+
+        function setStatus(msg) {
+          line.textContent = msg || '';
+        }
+
+        if (!window.LagosteCloud.cloudEnabled()) {
+          setStatus('Cloud sync is off. Set enabled: true in js/cloud-config.js');
+          if (savePw) savePw.disabled = true;
+          if (pullBtn) pullBtn.disabled = true;
+          if (pushBtn) pushBtn.disabled = true;
+          return;
+        }
+
+        if (window.LagosteCloud.getAdminPassword()) {
+          if (pw) pw.placeholder = '•••••••• (saved)';
+        }
+
+        if (savePw && pw) {
+          savePw.addEventListener('click', function () {
+            window.LagosteCloud.setAdminPassword(pw.value);
+            setStatus('Password saved for this browser. Edits will push to the cloud after ~2s.');
+          });
+        }
+        if (pullBtn) {
+          pullBtn.addEventListener('click', function () {
+            setStatus('Pulling…');
+            window.LagosteCloud.pullFromCloud().then(function () {
+              bootRunTournament();
+              setStatus('Pulled from cloud.');
+            });
+          });
+        }
+        if (pushBtn) {
+          pushBtn.addEventListener('click', function () {
+            setStatus('Pushing…');
+            window.LagosteCloud.pushToCloud(pw ? pw.value : null).then(function (res) {
+              setStatus(res.ok ? 'Push OK.' : 'Push failed: ' + (res.error || ''));
+            });
+          });
+        }
+      }
+
+      if (window.LagosteCloud && window.LagosteCloud.cloudEnabled && window.LagosteCloud.cloudEnabled()) {
+        window.LagosteCloud.pullFromCloud().then(function () {
+          bootRunTournament();
+          if (VIEW_ONLY) {
+            window.LagosteCloud.startPolling(function () {
+              renderGroupPhase();
+              if (phaseSelect.value === 'knockout') renderKnockoutPhase();
+            }, 8000);
+          } else {
+            wireRunTournamentCloudUi();
+          }
+        });
+      } else {
+        bootRunTournament();
+        if (!VIEW_ONLY) wireRunTournamentCloudUi();
+      }
+    })();
+  </script>
+</body>
+</html>
