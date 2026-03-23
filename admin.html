@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin — Lacoste Tennis Tournaments</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="admin-mode">
+  <header>
+    <nav>
+      <h1 class="logo">Lacoste Tennis Tournaments — Admin</h1>
+      <ul>
+        <li><a href="#home">Home</a></li>
+        <li><a href="#categories">Categories & Entry Lists</a></li>
+        <li><a href="run-tournament.html">Run tournament</a></li>
+        <li><a href="#contact">Contact</a></li>
+        <li><a href="index.html" class="nav-view-link">View public page</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main>
+    <section id="home" class="hero">
+      <div class="hero-content">
+        <h2>Admin</h2>
+        <p class="tagline">Edit players and manage the tournament</p>
+        <p>Changes here are saved automatically in <strong>this browser</strong>. With <a href="CLOUD-SETUP.md">cloud sync</a> enabled, updates also go to the database for live results. See <a href="ADMIN-HOSTING.md" target="_blank" rel="noopener">ADMIN-HOSTING.md</a> for details. Use <strong>View public page</strong> for spectators; use <strong>Run tournament</strong> for scores.</p>
+      </div>
+    </section>
+
+    <section id="cloud-live" class="section cloud-sync-panel">
+      <h2>Live results (cloud)</h2>
+      <p class="cloud-sync-help">Configure <code>js/cloud-config.js</code> and deploy the Netlify function — full steps in <a href="CLOUD-SETUP.md">CLOUD-SETUP.md</a>.</p>
+      <p id="cloud-status-line-admin" class="cloud-status-line" aria-live="polite"></p>
+      <div class="cloud-sync-actions">
+        <label for="cloud-admin-password-admin">Admin password (Netlify <code>ADMIN_SAVE_PASSWORD</code>):</label>
+        <div class="cloud-sync-row">
+          <input type="password" id="cloud-admin-password-admin" autocomplete="off" placeholder="Required for push">
+          <button type="button" id="cloud-save-pw-admin" class="btn-cloud">Save password</button>
+          <button type="button" id="cloud-pull-admin" class="btn-cloud">Pull now</button>
+          <button type="button" id="cloud-push-admin" class="btn-cloud">Push now</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="categories" class="section">
+      <h2>Categories & Entry Lists</h2>
+      <p class="section-intro">Choose a category. <strong>Click a name to edit it</strong> — changes are saved automatically and appear on the public view page.</p>
+
+      <div class="category-filter">
+        <label for="category-select">Show category:</label>
+        <select id="category-select" aria-label="Filter by category">
+          <option value="all">All</option>
+          <option value="advanced">Advanced</option>
+          <option value="intermediate">Intermediate</option>
+          <option value="beginners">Beginners</option>
+        </select>
+      </div>
+
+      <div class="category" data-category="advanced">
+        <h3>Advanced</h3>
+        <ol class="entry-list">
+          <li contenteditable="true" data-category="advanced" data-index="0">Player 1</li>
+          <li contenteditable="true" data-category="advanced" data-index="1">Player 2</li>
+          <li contenteditable="true" data-category="advanced" data-index="2">Player 3</li>
+          <li contenteditable="true" data-category="advanced" data-index="3">Player 4</li>
+          <li contenteditable="true" data-category="advanced" data-index="4">Player 5</li>
+          <li contenteditable="true" data-category="advanced" data-index="5">Player 6</li>
+          <li contenteditable="true" data-category="advanced" data-index="6">Player 7</li>
+          <li contenteditable="true" data-category="advanced" data-index="7">Player 8</li>
+          <li contenteditable="true" data-category="advanced" data-index="8">Player 9</li>
+          <li contenteditable="true" data-category="advanced" data-index="9">Player 10</li>
+          <li contenteditable="true" data-category="advanced" data-index="10">Player 11</li>
+          <li contenteditable="true" data-category="advanced" data-index="11">Player 12</li>
+        </ol>
+      </div>
+
+      <div class="category" data-category="intermediate">
+        <h3>Intermediate</h3>
+        <ol class="entry-list">
+          <li contenteditable="true" data-category="intermediate" data-index="0">Player 1</li>
+          <li contenteditable="true" data-category="intermediate" data-index="1">Player 2</li>
+          <li contenteditable="true" data-category="intermediate" data-index="2">Player 3</li>
+          <li contenteditable="true" data-category="intermediate" data-index="3">Player 4</li>
+          <li contenteditable="true" data-category="intermediate" data-index="4">Player 5</li>
+          <li contenteditable="true" data-category="intermediate" data-index="5">Player 6</li>
+          <li contenteditable="true" data-category="intermediate" data-index="6">Player 7</li>
+          <li contenteditable="true" data-category="intermediate" data-index="7">Player 8</li>
+          <li contenteditable="true" data-category="intermediate" data-index="8">Player 9</li>
+          <li contenteditable="true" data-category="intermediate" data-index="9">Player 10</li>
+          <li contenteditable="true" data-category="intermediate" data-index="10">Player 11</li>
+          <li contenteditable="true" data-category="intermediate" data-index="11">Player 12</li>
+        </ol>
+      </div>
+
+      <div class="category" data-category="beginners">
+        <h3>Beginners</h3>
+        <ol class="entry-list">
+          <li contenteditable="true" data-category="beginners" data-index="0">Player 1</li>
+          <li contenteditable="true" data-category="beginners" data-index="1">Player 2</li>
+          <li contenteditable="true" data-category="beginners" data-index="2">Player 3</li>
+          <li contenteditable="true" data-category="beginners" data-index="3">Player 4</li>
+          <li contenteditable="true" data-category="beginners" data-index="4">Player 5</li>
+          <li contenteditable="true" data-category="beginners" data-index="5">Player 6</li>
+          <li contenteditable="true" data-category="beginners" data-index="6">Player 7</li>
+          <li contenteditable="true" data-category="beginners" data-index="7">Player 8</li>
+          <li contenteditable="true" data-category="beginners" data-index="8">Player 9</li>
+          <li contenteditable="true" data-category="beginners" data-index="9">Player 10</li>
+          <li contenteditable="true" data-category="beginners" data-index="10">Player 11</li>
+          <li contenteditable="true" data-category="beginners" data-index="11">Player 12</li>
+        </ol>
+      </div>
+    </section>
+
+    <section id="schedule" class="section">
+      <h2>Schedule &amp; scores</h2>
+      <p>Enter match times and scores on <a href="run-tournament.html"><strong>Run tournament</strong></a>. The public site links to <a href="run-tournament-view.html">Tournament progress</a> (read-only).</p>
+    </section>
+
+    <section id="contact" class="section">
+      <h2>Contact</h2>
+      <p>Questions about the tournament? Reach out to Tennis League Cyprus for more information.</p>
+    </section>
+  </main>
+
+  <footer>
+    <p>Lacoste Tennis Tournaments — Admin · Organised by Tennis League Cyprus</p>
+    <p><a href="index.html" class="footer-view-link">View public page</a></p>
+    <p>&copy; Tennis League Cyprus</p>
+  </footer>
+
+  <script src="js/cloud-config.js"></script>
+  <script src="js/cloud-sync.js"></script>
+  <script>
+    (function () {
+      var STORAGE_KEY = 'lagoste_tennis_players';
+
+      var select = document.getElementById('category-select');
+      var categories = document.querySelectorAll('.category[data-category]');
+      var playerCells = document.querySelectorAll('.entry-list li[contenteditable="true"]');
+
+      function loadPlayers() {
+        try {
+          var saved = localStorage.getItem(STORAGE_KEY);
+          if (!saved) return;
+          var data = JSON.parse(saved);
+          playerCells.forEach(function (li) {
+            var cat = li.getAttribute('data-category');
+            var idx = parseInt(li.getAttribute('data-index'), 10);
+            if (data[cat] && data[cat][idx] !== undefined && data[cat][idx] !== '') {
+              li.textContent = data[cat][idx];
+            }
+          });
+        } catch (e) {}
+      }
+
+      function saveCategory(category) {
+        var list = document.querySelector('.category[data-category="' + category + '"] .entry-list');
+        if (!list) return;
+        var names = [];
+        var items = list.querySelectorAll('li');
+        for (var i = 0; i < items.length; i++) {
+          names.push(items[i].textContent.trim());
+        }
+        try {
+          var data = {};
+          try {
+            var existing = localStorage.getItem(STORAGE_KEY);
+            if (existing) data = JSON.parse(existing);
+          } catch (e) {}
+          data[category] = names;
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+          if (window.LagosteCloud && window.LagosteCloud.cloudEnabled && window.LagosteCloud.cloudEnabled()) {
+            window.LagosteCloud.schedulePush(window.LagosteCloud.getAdminPassword);
+          }
+        } catch (e) {}
+      }
+
+      function filterCategories() {
+        var value = select.value;
+        categories.forEach(function (el) {
+          var show = value === 'all' || el.getAttribute('data-category') === value;
+          el.classList.toggle('hidden', !show);
+        });
+      }
+
+      function wireAdminCloudUi() {
+        var line = document.getElementById('cloud-status-line-admin');
+        var pw = document.getElementById('cloud-admin-password-admin');
+        var savePw = document.getElementById('cloud-save-pw-admin');
+        var pullBtn = document.getElementById('cloud-pull-admin');
+        var pushBtn = document.getElementById('cloud-push-admin');
+        if (!line || !window.LagosteCloud) return;
+
+        function setStatus(msg) {
+          line.textContent = msg || '';
+        }
+
+        if (!window.LagosteCloud.cloudEnabled()) {
+          setStatus('Cloud sync is off. Set enabled: true in js/cloud-config.js');
+          if (savePw) savePw.disabled = true;
+          if (pullBtn) pullBtn.disabled = true;
+          if (pushBtn) pushBtn.disabled = true;
+          return;
+        }
+
+        if (window.LagosteCloud.getAdminPassword() && pw) {
+          pw.placeholder = '•••••••• (saved)';
+        }
+
+        if (savePw && pw) {
+          savePw.addEventListener('click', function () {
+            window.LagosteCloud.setAdminPassword(pw.value);
+            setStatus('Password saved. Name changes will push to the cloud after ~2s.');
+          });
+        }
+        if (pullBtn) {
+          pullBtn.addEventListener('click', function () {
+            setStatus('Pulling…');
+            window.LagosteCloud.pullFromCloud().then(function () {
+              loadPlayers();
+              setStatus('Pulled from cloud.');
+            });
+          });
+        }
+        if (pushBtn) {
+          pushBtn.addEventListener('click', function () {
+            setStatus('Pushing…');
+            window.LagosteCloud.pushToCloud(pw ? pw.value : null).then(function (res) {
+              setStatus(res.ok ? 'Push OK.' : 'Push failed: ' + (res.error || ''));
+            });
+          });
+        }
+      }
+
+      function startAdmin() {
+        loadPlayers();
+        select.addEventListener('change', filterCategories);
+        filterCategories();
+        wireAdminCloudUi();
+
+        playerCells.forEach(function (li) {
+          li.addEventListener('blur', function () {
+            saveCategory(li.getAttribute('data-category'));
+          });
+        });
+      }
+
+      if (window.LagosteCloud && window.LagosteCloud.cloudEnabled && window.LagosteCloud.cloudEnabled()) {
+        window.LagosteCloud.pullFromCloud().then(function () {
+          startAdmin();
+        });
+      } else {
+        startAdmin();
+      }
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lacoste Tennis Tournaments</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="view-mode">
+  <header>
+    <nav>
+      <h1 class="logo">Lacoste Tennis Tournaments</h1>
+      <ul>
+        <li><a href="#home">Home</a></li>
+        <li><a href="#sponsors">Sponsors</a></li>
+        <li><a href="#categories">Categories & Entry Lists</a></li>
+        <li><a href="run-tournament-view.html">Tournament progress</a></li>
+        <li><a href="#contact">Contact</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main>
+    <section id="home" class="hero">
+      <div class="hero-content">
+        <h2>Lacoste Tennis Tournaments</h2>
+        <p class="tagline">Organised by Tennis League Cyprus</p>
+        <p>Use the menu above to view categories & entry lists, tournament progress, and contact.</p>
+      </div>
+    </section>
+
+    <section id="sponsors" class="section sponsors-section">
+      <h2>Our Sponsors</h2>
+      <div class="sponsor-title-wrap">
+        <p class="sponsor-title-label">Title sponsor</p>
+        <div class="sponsor-logo sponsor-logo-title"><img src="images/sponsors/sponsor1.png" alt="Title sponsor"></div>
+      </div>
+      <div class="sponsors-grid">
+        <div class="sponsor-logo"><img src="images/sponsors/sponsor2.png" alt="Sponsor 2"></div>
+        <div class="sponsor-logo"><img src="images/sponsors/sponsor3.png" alt="Sponsor 3"></div>
+        <div class="sponsor-logo"><img src="images/sponsors/sponsor4.jpeg" alt="Sponsor 4"></div>
+        <div class="sponsor-logo"><img src="images/sponsors/sponsor5.jpeg" alt="Sponsor 5"></div>
+      </div>
+    </section>
+
+    <section id="categories" class="section">
+      <h2>Categories & Entry Lists</h2>
+      <p class="section-intro">Choose a category to view the entry list:</p>
+
+      <div class="category-filter">
+        <label for="category-select">Show category:</label>
+        <select id="category-select" aria-label="Filter by category">
+          <option value="all">All</option>
+          <option value="advanced">Advanced</option>
+          <option value="intermediate">Intermediate</option>
+          <option value="beginners">Beginners</option>
+        </select>
+      </div>
+
+      <div class="category" data-category="advanced">
+        <h3>Advanced</h3>
+        <ol class="entry-list">
+          <li data-category="advanced" data-index="0">Player 1</li>
+          <li data-category="advanced" data-index="1">Player 2</li>
+          <li data-category="advanced" data-index="2">Player 3</li>
+          <li data-category="advanced" data-index="3">Player 4</li>
+          <li data-category="advanced" data-index="4">Player 5</li>
+          <li data-category="advanced" data-index="5">Player 6</li>
+          <li data-category="advanced" data-index="6">Player 7</li>
+          <li data-category="advanced" data-index="7">Player 8</li>
+          <li data-category="advanced" data-index="8">Player 9</li>
+          <li data-category="advanced" data-index="9">Player 10</li>
+          <li data-category="advanced" data-index="10">Player 11</li>
+          <li data-category="advanced" data-index="11">Player 12</li>
+        </ol>
+      </div>
+
+      <div class="category" data-category="intermediate">
+        <h3>Intermediate</h3>
+        <ol class="entry-list">
+          <li data-category="intermediate" data-index="0">Player 1</li>
+          <li data-category="intermediate" data-index="1">Player 2</li>
+          <li data-category="intermediate" data-index="2">Player 3</li>
+          <li data-category="intermediate" data-index="3">Player 4</li>
+          <li data-category="intermediate" data-index="4">Player 5</li>
+          <li data-category="intermediate" data-index="5">Player 6</li>
+          <li data-category="intermediate" data-index="6">Player 7</li>
+          <li data-category="intermediate" data-index="7">Player 8</li>
+          <li data-category="intermediate" data-index="8">Player 9</li>
+          <li data-category="intermediate" data-index="9">Player 10</li>
+          <li data-category="intermediate" data-index="10">Player 11</li>
+          <li data-category="intermediate" data-index="11">Player 12</li>
+        </ol>
+      </div>
+
+      <div class="category" data-category="beginners">
+        <h3>Beginners</h3>
+        <ol class="entry-list">
+          <li data-category="beginners" data-index="0">Player 1</li>
+          <li data-category="beginners" data-index="1">Player 2</li>
+          <li data-category="beginners" data-index="2">Player 3</li>
+          <li data-category="beginners" data-index="3">Player 4</li>
+          <li data-category="beginners" data-index="4">Player 5</li>
+          <li data-category="beginners" data-index="5">Player 6</li>
+          <li data-category="beginners" data-index="6">Player 7</li>
+          <li data-category="beginners" data-index="7">Player 8</li>
+          <li data-category="beginners" data-index="8">Player 9</li>
+          <li data-category="beginners" data-index="9">Player 10</li>
+          <li data-category="beginners" data-index="10">Player 11</li>
+          <li data-category="beginners" data-index="11">Player 12</li>
+        </ol>
+      </div>
+    </section>
+
+    <section id="schedule" class="section">
+      <h2>Tournament progress</h2>
+      <p>Group standings, match scores, times, and the knockout bracket are on the <strong>Tournament progress</strong> page.</p>
+      <p><a href="run-tournament-view.html" class="cta-link">Open tournament progress</a></p>
+    </section>
+
+    <section id="contact" class="section">
+      <h2>Contact</h2>
+      <p>Questions about the tournament? Reach out to Tennis League Cyprus for more information.</p>
+    </section>
+  </main>
+
+  <footer>
+    <p>Lacoste Tennis Tournaments — Organised by Tennis League Cyprus</p>
+    <p>&copy; Tennis League Cyprus</p>
+  </footer>
+
+  <script src="js/cloud-config.js"></script>
+  <script src="js/cloud-sync.js"></script>
+  <script>
+    (function () {
+      var STORAGE_KEY = 'lagoste_tennis_players';
+      var select = document.getElementById('category-select');
+      var categories = document.querySelectorAll('.category[data-category]');
+      var playerCells = document.querySelectorAll('.entry-list li[data-category]');
+
+      function loadPlayers() {
+        try {
+          var saved = localStorage.getItem(STORAGE_KEY);
+          if (!saved) return;
+          var data = JSON.parse(saved);
+          playerCells.forEach(function (li) {
+            var cat = li.getAttribute('data-category');
+            var idx = parseInt(li.getAttribute('data-index'), 10);
+            if (data[cat] && data[cat][idx] !== undefined && data[cat][idx] !== '') {
+              li.textContent = data[cat][idx];
+            }
+          });
+        } catch (e) {}
+      }
+
+      function filterCategories() {
+        var value = select.value;
+        categories.forEach(function (el) {
+          var show = value === 'all' || el.getAttribute('data-category') === value;
+          el.classList.toggle('hidden', !show);
+        });
+      }
+
+      function afterPull() {
+        loadPlayers();
+        select.addEventListener('change', filterCategories);
+        filterCategories();
+        if (window.LagosteCloud && window.LagosteCloud.cloudEnabled && window.LagosteCloud.cloudEnabled()) {
+          window.LagosteCloud.startPolling(loadPlayers, 10000);
+        }
+      }
+
+      if (window.LagosteCloud && window.LagosteCloud.cloudEnabled && window.LagosteCloud.cloudEnabled()) {
+        window.LagosteCloud.pullFromCloud().then(afterPull);
+      } else {
+        afterPull();
+      }
+    })();
+  </script>
+</body>
+</html>
