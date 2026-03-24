@@ -23,6 +23,23 @@ This adds a **shared cloud copy** of players, match scores, and tie-break data s
 
 3. Redeploy after saving variables.
 
+**Important — two different keys**
+
+| Where | Key |
+|--------|-----|
+| `js/cloud-config.js` → `supabaseAnonKey` | **Publishable** or **anon** only |
+| Netlify → `SUPABASE_SERVICE_ROLE_KEY` | **Secret** / **service_role** only |
+
+They must **not** be the same string. If you paste the publishable key into `SUPABASE_SERVICE_ROLE_KEY`, saves break and Netlify **secrets scanning** fails because that value also appears in `cloud-config.js`.
+
+### Netlify build fails: “Secrets scanning found secrets”
+
+Same cause: `SUPABASE_SERVICE_ROLE_KEY` matches text in the repo (usually because both were set to the publishable key). **Fix:** In Supabase → **Settings → API**, copy the **secret** (service_role) key into Netlify’s `SUPABASE_SERVICE_ROLE_KEY` only. Leave `cloud-config.js` with the **publishable** key. Redeploy.
+
+If the secret key was ever committed to Git, **rotate** it in Supabase (API keys) after fixing.
+
+---
+
 Netlify will pick up `netlify.toml` and deploy the function at:
 
 `https://YOUR-SITE.netlify.app/.netlify/functions/save-tournament`
@@ -67,6 +84,20 @@ window.LAGOSTE_CLOUD = {
 |--------|--------|
 | Public page never updates | `enabled: true`, URL/anon key correct, row exists (`singleton` in `tournament_state`) |
 | Push fails 401 | Password must match `ADMIN_SAVE_PASSWORD` exactly |
-| Push fails 502 | Netlify env: `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` |
+| Push fails 502 / **Database error** | See below ↓ |
 | CORS errors | Save must go to **same site** as the HTML or configure CORS on your host |
 | Netlify **“Page not found”** (404) | The live files are in **`lagoste_tennis_tournaments/`**. If your Git repo is the **parent** folder, set **Publish directory** to `lagoste_tennis_tournaments` in Netlify, or use the repo-root **`netlify.toml`** (see parent folder). Redeploy. |
+
+### “Database error” when pushing (502)
+
+1. **`SUPABASE_SERVICE_ROLE_KEY` in Netlify** must be the **secret** / **service_role** key (Supabase → **Project Settings → API**).  
+   **Not** the publishable/anon key — that causes permission / DB errors.
+
+2. **`SUPABASE_URL`** must be exactly your project URL, e.g. `https://xxxxx.supabase.co` (no trailing slash).
+
+3. **Table exists:** Supabase → **SQL Editor** → run everything in **`supabase/schema.sql`** once.  
+   **Table Editor** → you should see **`tournament_state`** with a row **`id` = `singleton`**.
+
+4. **Redeploy** Netlify after changing env vars (**Deploys → Trigger deploy**).
+
+5. **Browser DevTools** → **Network** → click the failed `save-tournament` request → **Response** body often includes a `detail` line from Postgres/PostgREST (e.g. “relation does not exist”, “JWT expired”).

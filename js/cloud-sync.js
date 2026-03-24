@@ -152,7 +152,10 @@
         if (r.status === 204 || r.ok) return { ok: true };
         return r.json().then(
           function (j) {
-            return { ok: false, error: j.error || r.statusText };
+            var msg = j.error || r.statusText;
+            if (j.detail) msg += ': ' + j.detail;
+            if (j.hint) msg += ' — ' + j.hint;
+            return { ok: false, error: msg, raw: j };
           },
           function () {
             return { ok: false, error: r.statusText };

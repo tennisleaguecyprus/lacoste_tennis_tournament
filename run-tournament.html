@@ -402,6 +402,18 @@
         return null;
       }
 
+      /** Minutes from midnight for sorting; no time → sort last. */
+      function scheduleTimeSortKey(timeStr) {
+        if (!timeStr || !String(timeStr).trim()) return 99999;
+        var s = String(timeStr).trim().substring(0, 5);
+        var parts = s.split(':');
+        if (parts.length < 2) return 99999;
+        var h = parseInt(parts[0], 10);
+        var mi = parseInt(parts[1], 10);
+        if (isNaN(h) || isNaN(mi)) return 99999;
+        return h * 60 + mi;
+      }
+
       function escapeHtml(text) {
         var div = document.createElement('div');
         div.textContent = text;
@@ -531,7 +543,18 @@
 
           html += '<h4 class="schedule-heading">Schedule</h4>';
           html += '<ul class="group-schedule-list">';
-          for (var m = 0; m < scheduleMatches.length; m++) {
+          var scheduleOrder = [];
+          for (var mOrd = 0; mOrd < scheduleMatches.length; mOrd++) {
+            var rOrd = matchResults[mOrd] || {};
+            var tOrd = (rOrd.time && String(rOrd.time).trim()) ? String(rOrd.time).substring(0, 5) : '';
+            scheduleOrder.push({ mIdx: mOrd, key: scheduleTimeSortKey(tOrd) });
+          }
+          scheduleOrder.sort(function (a, b) {
+            if (a.key !== b.key) return a.key - b.key;
+            return a.mIdx - b.mIdx;
+          });
+          for (var si = 0; si < scheduleOrder.length; si++) {
+            var m = scheduleOrder[si].mIdx;
             var mt = scheduleMatches[m];
             var res = matchResults[m] || {};
             var v1 = typeof res.s1 === 'number' ? res.s1 : '';

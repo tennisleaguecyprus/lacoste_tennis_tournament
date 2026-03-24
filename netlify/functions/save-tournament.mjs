@@ -52,7 +52,7 @@ export const handler = async (event) => {
     };
   }
 
-  const payload = {
+  const row = {
     id: 'singleton',
     players: body.players ?? {},
     group_matches: body.group_matches ?? {},
@@ -60,23 +60,31 @@ export const handler = async (event) => {
     updated_at: new Date().toISOString(),
   };
 
-  const res = await fetch(`${supabaseUrl}/rest/v1/tournament_state`, {
-    method: 'POST',
-    headers: {
-      apikey: serviceKey,
-      Authorization: `Bearer ${serviceKey}`,
-      'Content-Type': 'application/json',
-      Prefer: 'resolution=merge-duplicates,return=minimal',
-    },
-    body: JSON.stringify(payload),
-  });
+  // Upsert one row: ?on_conflict=id is required for merge-duplicates on many PostgREST versions
+  const res = await fetch(
+    `${supabaseUrl}/rest/v1/tournament_state?on_conflict=id`,
+    {
+      method: 'POST',
+      headers: {
+        apikey: serviceKey,
+        Authorization: `Bearer ${serviceKey}`,
+        'Content-Type': 'application/json',
+        Prefer: 'return=minimal,resolution=merge-duplicates',
+      },
+      body: JSON.stringify(row),
+    }
+  );
 
   if (!res.ok) {
     const detail = await res.text();
     return {
       statusCode: 502,
       headers: CORS,
-      body: JSON.stringify({ error: 'Database error', detail }),
+      body: JSON.stringify({
+        error: 'Database error',
+        detail,
+        hint: 'Check Netlify env SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY (secret/service_role, not anon). Run supabase/schema.sql in Supabase SQL Editor.',
+      }),
     };
   }
 
