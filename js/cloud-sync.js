@@ -126,7 +126,11 @@
       var t = localStorage.getItem(KEYS.tiebreak);
       if (t) third_tiebreak = JSON.parse(t);
     } catch (e) {}
-    return { players: players, group_matches: group_matches, third_tiebreak: third_tiebreak };
+    return {
+      players: players,
+      group_matches: group_matches,
+      third_tiebreak: third_tiebreak,
+    };
   }
 
   function pushToCloud(adminPassword) {

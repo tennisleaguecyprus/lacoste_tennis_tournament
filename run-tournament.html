@@ -88,6 +88,11 @@
             </select>
           </div>
         </div>
+        <p class="knockout-bracket-note knockout-qf-admin-hint">
+          Quarter-final player names are edited on
+          <a href="admin.html#qf-labels">Admin → Quarter-final names</a>
+          (defaults: <strong>Pending</strong>).
+        </p>
         <div id="knockout-container" class="knockout-container"></div>
       </div>
     </section>
@@ -99,6 +104,7 @@
   </footer>
 
   <script src="js/cloud-config.js"></script>
+  <script src="js/qf-labels.js"></script>
   <script src="js/cloud-sync.js"></script>
   <script>
     (function () {
@@ -524,7 +530,9 @@
           var qualifiedClass = allGroupComplete ? ' has-qualified' : '';
 
           html += '<div class="' + groupClass + '" data-group="' + (g + 1) + '">';
-          html += '<h3>Group ' + (g + 1) + '</h3>';
+          var groupWhen =
+            g < 2 ? ' — Saturday 28th March' : ' — Sunday 29th March';
+          html += '<h3>Group ' + (g + 1) + groupWhen + '</h3>';
 
           html += '<div class="group-standings-wrap">';
           html += '<table class="standings-table' + qualifiedClass + '"><thead><tr><th>#</th><th>Player</th><th>GP</th><th title="Game points scored">W</th><th title="Game points conceded">L</th><th title="W minus L">Diff</th><th></th></tr></thead><tbody>';
@@ -766,68 +774,36 @@
         }
       }
 
-      function getKnockoutEight(category) {
-        var state = getGroupPhaseState(category);
-        var list = [];
-        for (var g = 0; g < NUM_GROUPS; g++) {
-          var st = state.standingsList[g];
-          list.push({ p: st[0] ? st[0].player : 'Winner G' + (g + 1), g: g });
-          list.push({ p: st[1] ? st[1].player : 'Runner-up G' + (g + 1), g: g });
-        }
-        var bn = state.bestThirdNames || {};
-        var dis = state.thirdsRankedDisplay || [];
-        var added = 0;
-        if (state.allGlobalComplete) {
-          for (var i = 0; i < dis.length && added < 2; i++) {
-            if (bn[dis[i].player]) {
-              list.push({ p: dis[i].player, g: dis[i].groupIndex });
-              added++;
-            }
-          }
-        }
-        while (added < 2) {
-          list.push({ p: 'Best 3rd (pending)', g: -1 - added });
-          added++;
-        }
-        var thirdQualifiersReady = state.allGlobalComplete && (!state.thirdTieActive || state.thirdTiebreakComplete);
-        return { list: list, allComplete: state.allGlobalComplete, thirdQualifiersReady: thirdQualifiersReady };
-      }
-
-      function buildStructuredKnockoutQF(fullList) {
-        if (!fullList || fullList.length < 8) return [];
-        var W = [fullList[0], fullList[2], fullList[4]];
-        var R = [fullList[1], fullList[3], fullList[5]];
-        var T = [fullList[6], fullList[7]];
-        return [
-          [W[0], R[1]],
-          [W[1], R[2]],
-          [W[2], R[0]],
-          [T[0], T[1]]
-        ];
-      }
-
       function renderKnockoutPhase() {
         var category = knockoutCategorySelect.value;
-        var data = getKnockoutEight(category);
-        var qfPairs = buildStructuredKnockoutQF(data.list);
+        var qfLabels =
+          window.LagosteQfLabels && window.LagosteQfLabels.getLabels
+            ? window.LagosteQfLabels.getLabels(category)
+            : ['Pending', 'Pending', 'Pending', 'Pending', 'Pending', 'Pending', 'Pending', 'Pending'];
 
         var html = '';
         html += '<div class="knockout-round">';
-        html += '<h3 class="knockout-round-title">Quarter-finals</h3>';
+        html += '<h3 class="knockout-round-title">Quarter-finals — Sunday 29th March</h3>';
         html += '<div class="knockout-matches">';
-        for (var qi = 0; qi < qfPairs.length; qi++) {
-          var pr = qfPairs[qi];
+        for (var qi = 0; qi < 4; qi++) {
+          var la = qfLabels[qi * 2] || 'Pending';
+          var lb = qfLabels[qi * 2 + 1] || 'Pending';
           html += '<div class="knockout-match"><span class="knockout-match-label">QF' + (qi + 1) + '</span>';
-          html += '<div class="knockout-match-slots"><div class="knockout-slot">' + escapeHtml(pr[0].p) + '</div><div class="knockout-vs">vs</div><div class="knockout-slot">' + escapeHtml(pr[1].p) + '</div></div></div>';
+          html +=
+            '<div class="knockout-match-slots"><div class="knockout-slot">' +
+            escapeHtml(la) +
+            '</div><div class="knockout-vs">vs</div><div class="knockout-slot">' +
+            escapeHtml(lb) +
+            '</div></div></div>';
         }
         html += '</div></div>';
 
-        html += '<div class="knockout-round"><h3 class="knockout-round-title">Semi-finals</h3><div class="knockout-matches">';
+        html += '<div class="knockout-round"><h3 class="knockout-round-title">Semi-finals — Sunday 29th March</h3><div class="knockout-matches">';
         html += '<div class="knockout-match"><span class="knockout-match-label">SF1</span><div class="knockout-match-slots"><div class="knockout-slot">Winner QF1</div><div class="knockout-vs">vs</div><div class="knockout-slot">Winner QF2</div></div></div>';
         html += '<div class="knockout-match"><span class="knockout-match-label">SF2</span><div class="knockout-match-slots"><div class="knockout-slot">Winner QF3</div><div class="knockout-vs">vs</div><div class="knockout-slot">Winner QF4</div></div></div>';
         html += '</div></div>';
 
-        html += '<div class="knockout-round"><h3 class="knockout-round-title">Final</h3><div class="knockout-matches">';
+        html += '<div class="knockout-round"><h3 class="knockout-round-title">Final — Sunday 29th March</h3><div class="knockout-matches">';
         html += '<div class="knockout-match"><span class="knockout-match-label">Final</span><div class="knockout-match-slots"><div class="knockout-slot">Winner SF1</div><div class="knockout-vs">vs</div><div class="knockout-slot">Winner SF2</div></div></div>';
         html += '</div></div>';
 

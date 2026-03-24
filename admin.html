@@ -118,6 +118,23 @@
       <p>Enter match times and scores on <a href="run-tournament.html"><strong>Run tournament</strong></a>. The public site links to <a href="run-tournament-view.html">Tournament progress</a> (read-only).</p>
     </section>
 
+    <section id="qf-labels" class="section">
+      <h2>Quarter-final names (public bracket)</h2>
+      <p class="section-intro">
+        <strong>Tournament progress</strong> shows these names in the <strong>quarter-finals</strong> only (not auto-filled from group standings).
+        Defaults are <strong>Pending</strong>; replace with real names when each category’s qualifiers are known. Saves in this browser; with cloud sync, changes also upload after ~2s.
+      </p>
+      <div class="category-filter">
+        <label for="qf-category-select">Category:</label>
+        <select id="qf-category-select" aria-label="Category for quarter-final labels">
+          <option value="advanced">Advanced</option>
+          <option value="intermediate">Intermediate</option>
+          <option value="beginners">Beginners</option>
+        </select>
+      </div>
+      <div id="qf-labels-fields" class="qf-labels-fields" aria-live="polite"></div>
+    </section>
+
     <section id="contact" class="section">
       <h2>Contact</h2>
       <p>Questions about the tournament? Reach out to Tennis League Cyprus for more information.</p>
@@ -131,10 +148,14 @@
   </footer>
 
   <script src="js/cloud-config.js"></script>
+  <script src="js/qf-labels.js"></script>
   <script src="js/cloud-sync.js"></script>
   <script>
     (function () {
       var STORAGE_KEY = 'lagoste_tennis_players';
+
+      var qfCatSelect = document.getElementById('qf-category-select');
+      var qfFieldsWrap = document.getElementById('qf-labels-fields');
 
       var select = document.getElementById('category-select');
       var categories = document.querySelectorAll('.category[data-category]');
@@ -185,6 +206,61 @@
         });
       }
 
+      function saveQfFromAdmin() {
+        if (!qfCatSelect || !window.LagosteQfLabels) return;
+        var cat = qfCatSelect.value;
+        var inputs = qfFieldsWrap ? qfFieldsWrap.querySelectorAll('.qf-label-input') : [];
+        var arr = window.LagosteQfLabels.defaults();
+        inputs.forEach(function (inp) {
+          var idx = parseInt(inp.getAttribute('data-slot'), 10);
+          if (!isNaN(idx) && idx >= 0 && idx < 8) {
+            arr[idx] = inp.value.trim() || 'Pending';
+          }
+        });
+        window.LagosteQfLabels.setLabels(cat, arr);
+        if (window.LagosteCloud && window.LagosteCloud.cloudEnabled && window.LagosteCloud.cloudEnabled()) {
+          window.LagosteCloud.schedulePush(window.LagosteCloud.getAdminPassword);
+        }
+      }
+
+      function renderQfAdminFields() {
+        if (!qfCatSelect || !qfFieldsWrap || !window.LagosteQfLabels) return;
+        var cat = qfCatSelect.value;
+        var labels = window.LagosteQfLabels.getLabels(cat);
+        qfFieldsWrap.innerHTML = '';
+        for (var q = 0; q < 4; q++) {
+          var row = document.createElement('div');
+          row.className = 'qf-label-row';
+          var lab = document.createElement('span');
+          lab.className = 'qf-label-qi';
+          lab.textContent = 'QF' + (q + 1);
+          row.appendChild(lab);
+          var inpA = document.createElement('input');
+          inpA.type = 'text';
+          inpA.className = 'qf-label-input';
+          inpA.setAttribute('data-slot', String(q * 2));
+          inpA.value = labels[q * 2];
+          inpA.setAttribute('aria-label', 'QF ' + (q + 1) + ' first player');
+          row.appendChild(inpA);
+          var vs = document.createElement('span');
+          vs.className = 'qf-vs';
+          vs.textContent = 'vs';
+          row.appendChild(vs);
+          var inpB = document.createElement('input');
+          inpB.type = 'text';
+          inpB.className = 'qf-label-input';
+          inpB.setAttribute('data-slot', String(q * 2 + 1));
+          inpB.value = labels[q * 2 + 1];
+          inpB.setAttribute('aria-label', 'QF ' + (q + 1) + ' second player');
+          row.appendChild(inpB);
+          qfFieldsWrap.appendChild(row);
+        }
+        qfFieldsWrap.querySelectorAll('.qf-label-input').forEach(function (inp) {
+          inp.addEventListener('change', saveQfFromAdmin);
+          inp.addEventListener('blur', saveQfFromAdmin);
+        });
+      }
+
       function wireAdminCloudUi() {
         var line = document.getElementById('cloud-status-line-admin');
         var pw = document.getElementById('cloud-admin-password-admin');
@@ -220,6 +296,7 @@
             setStatus('Pulling…');
             window.LagosteCloud.pullFromCloud().then(function () {
               loadPlayers();
+              renderQfAdminFields();
               setStatus('Pulled from cloud.');
             });
           });
@@ -239,6 +316,10 @@
         select.addEventListener('change', filterCategories);
         filterCategories();
         wireAdminCloudUi();
+        if (qfCatSelect) {
+          qfCatSelect.addEventListener('change', renderQfAdminFields);
+          renderQfAdminFields();
+        }
 
         playerCells.forEach(function (li) {
           li.addEventListener('blur', function () {
