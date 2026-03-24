@@ -226,16 +226,16 @@ main {
   max-width: 65ch;
 }
 
-/* Sponsors */
-.sponsors-section {
+/* Partner logos (neutral paths/class names — ad blockers often hide #sponsors / sponsor* URLs) */
+.partners-section {
   text-align: center;
 }
 
-.sponsors-section h2 {
+.partners-section h2 {
   margin-bottom: 1.25rem;
 }
 
-.sponsors-box {
+.partners-box {
   background: #fff;
   color: var(--text);
   padding: 1.75rem 1.5rem;
@@ -245,7 +245,7 @@ main {
   text-align: center;
 }
 
-.sponsors-grid {
+.partners-grid {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
@@ -254,12 +254,12 @@ main {
   margin: 0;
 }
 
-.sponsor-logo {
+.partner-logo {
   flex: 0 0 auto;
   max-width: 180px;
 }
 
-.sponsor-logo img {
+.partner-logo img {
   max-height: 80px;
   width: auto;
   max-width: 100%;
