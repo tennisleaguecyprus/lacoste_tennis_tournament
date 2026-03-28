@@ -214,6 +214,36 @@
         }
       }
 
+      function getKnockoutMeta(category) {
+        try {
+          var saved = localStorage.getItem(MATCHES_KEY);
+          if (!saved) return [];
+          var data = JSON.parse(saved);
+          var key = category + '_knockout';
+          return Array.isArray(data[key]) ? data[key] : [];
+        } catch (e) {
+          return [];
+        }
+      }
+
+      function saveKnockoutMeta(category, matchIndex, time, court) {
+        try {
+          var saved = localStorage.getItem(MATCHES_KEY);
+          var data = saved ? JSON.parse(saved) : {};
+          var key = category + '_knockout';
+          if (!data[key]) data[key] = [];
+          while (data[key].length <= matchIndex) {
+            data[key].push({ time: null, court: null });
+          }
+          var rec = data[key][matchIndex] || {};
+          if (time !== undefined) rec.time = time;
+          if (court !== undefined) rec.court = court === null || court === '' ? null : court;
+          data[key][matchIndex] = rec;
+          localStorage.setItem(MATCHES_KEY, JSON.stringify(data));
+          scheduleCloudPush();
+        } catch (e) {}
+      }
+
       function headToHeadWinner(matchResults, playerA, playerB) {
         for (var i = 0; i < matchResults.length; i++) {
           var m = matchResults[i];
@@ -780,6 +810,7 @@
           window.LagosteQfLabels && window.LagosteQfLabels.getLabels
             ? window.LagosteQfLabels.getLabels(category)
             : ['Pending', 'Pending', 'Pending', 'Pending', 'Pending', 'Pending', 'Pending', 'Pending'];
+        var koMeta = getKnockoutMeta(category);
 
         var html = '';
         html += '<div class="knockout-round">';
@@ -788,27 +819,118 @@
         for (var qi = 0; qi < 4; qi++) {
           var la = qfLabels[qi * 2] || 'Pending';
           var lb = qfLabels[qi * 2 + 1] || 'Pending';
+          var qMeta = koMeta[qi] || {};
+          var qTime = (qMeta.time && String(qMeta.time).trim()) ? String(qMeta.time).substring(0, 5) : '';
+          var qCourt = normalizeCourt(qMeta.court);
           html += '<div class="knockout-match"><span class="knockout-match-label">QF' + (qi + 1) + '</span>';
           html +=
             '<div class="knockout-match-slots"><div class="knockout-slot">' +
             escapeHtml(la) +
             '</div><div class="knockout-vs">vs</div><div class="knockout-slot">' +
             escapeHtml(lb) +
-            '</div></div></div>';
+            '</div></div>';
+          if (VIEW_ONLY) {
+            html += '<span class="match-time-readonly">' + (qTime ? escapeHtml(qTime) : '—') + '</span>';
+            html += '<span class="match-court-readonly">' + (qCourt ? 'Court ' + qCourt : '—') + '</span>';
+          } else {
+            var qSel0 = !qCourt ? ' selected' : '';
+            var qSel1 = qCourt === 1 ? ' selected' : '';
+            var qSel2 = qCourt === 2 ? ' selected' : '';
+            var qSel3 = qCourt === 3 ? ' selected' : '';
+            html += '<span class="match-time-wrap"><input type="time" class="knockout-time-input" data-cat="' + escapeHtml(category) + '" data-km="' + qi + '" value="' + escapeHtml(qTime) + '" aria-label="Quarter-final time"></span>';
+            html += '<span class="match-court-wrap"><select class="knockout-court-select" data-cat="' + escapeHtml(category) + '" data-km="' + qi + '" aria-label="Quarter-final court">';
+            html += '<option value=""' + qSel0 + '>Court —</option>';
+            html += '<option value="1"' + qSel1 + '>Court 1</option>';
+            html += '<option value="2"' + qSel2 + '>Court 2</option>';
+            html += '<option value="3"' + qSel3 + '>Court 3</option>';
+            html += '</select></span>';
+          }
+          html += '</div>';
         }
         html += '</div></div>';
 
         html += '<div class="knockout-round"><h3 class="knockout-round-title">Semi-finals — Sunday 29th March</h3><div class="knockout-matches">';
-        html += '<div class="knockout-match"><span class="knockout-match-label">SF1</span><div class="knockout-match-slots"><div class="knockout-slot">Winner QF1</div><div class="knockout-vs">vs</div><div class="knockout-slot">Winner QF2</div></div></div>';
-        html += '<div class="knockout-match"><span class="knockout-match-label">SF2</span><div class="knockout-match-slots"><div class="knockout-slot">Winner QF3</div><div class="knockout-vs">vs</div><div class="knockout-slot">Winner QF4</div></div></div>';
+        var sfLabels = [
+          ['SF1', 'Winner QF1', 'Winner QF2'],
+          ['SF2', 'Winner QF3', 'Winner QF4']
+        ];
+        for (var sfi = 0; sfi < sfLabels.length; sfi++) {
+          var sfMeta = koMeta[4 + sfi] || {};
+          var sfTime = (sfMeta.time && String(sfMeta.time).trim()) ? String(sfMeta.time).substring(0, 5) : '';
+          var sfCourt = normalizeCourt(sfMeta.court);
+          html += '<div class="knockout-match"><span class="knockout-match-label">' + sfLabels[sfi][0] + '</span><div class="knockout-match-slots"><div class="knockout-slot">' + sfLabels[sfi][1] + '</div><div class="knockout-vs">vs</div><div class="knockout-slot">' + sfLabels[sfi][2] + '</div></div>';
+          if (VIEW_ONLY) {
+            html += '<span class="match-time-readonly">' + (sfTime ? escapeHtml(sfTime) : '—') + '</span>';
+            html += '<span class="match-court-readonly">' + (sfCourt ? 'Court ' + sfCourt : '—') + '</span>';
+          } else {
+            var sfSel0 = !sfCourt ? ' selected' : '';
+            var sfSel1 = sfCourt === 1 ? ' selected' : '';
+            var sfSel2 = sfCourt === 2 ? ' selected' : '';
+            var sfSel3 = sfCourt === 3 ? ' selected' : '';
+            html += '<span class="match-time-wrap"><input type="time" class="knockout-time-input" data-cat="' + escapeHtml(category) + '" data-km="' + (4 + sfi) + '" value="' + escapeHtml(sfTime) + '" aria-label="Semi-final time"></span>';
+            html += '<span class="match-court-wrap"><select class="knockout-court-select" data-cat="' + escapeHtml(category) + '" data-km="' + (4 + sfi) + '" aria-label="Semi-final court">';
+            html += '<option value=""' + sfSel0 + '>Court —</option>';
+            html += '<option value="1"' + sfSel1 + '>Court 1</option>';
+            html += '<option value="2"' + sfSel2 + '>Court 2</option>';
+            html += '<option value="3"' + sfSel3 + '>Court 3</option>';
+            html += '</select></span>';
+          }
+          html += '</div>';
+        }
         html += '</div></div>';
 
         html += '<div class="knockout-round"><h3 class="knockout-round-title">Final — Sunday 29th March</h3><div class="knockout-matches">';
-        html += '<div class="knockout-match"><span class="knockout-match-label">Final</span><div class="knockout-match-slots"><div class="knockout-slot">Winner SF1</div><div class="knockout-vs">vs</div><div class="knockout-slot">Winner SF2</div></div></div>';
+        var fMeta = koMeta[6] || {};
+        var fTime = (fMeta.time && String(fMeta.time).trim()) ? String(fMeta.time).substring(0, 5) : '';
+        var fCourt = normalizeCourt(fMeta.court);
+        html += '<div class="knockout-match"><span class="knockout-match-label">Final</span><div class="knockout-match-slots"><div class="knockout-slot">Winner SF1</div><div class="knockout-vs">vs</div><div class="knockout-slot">Winner SF2</div></div>';
+        if (VIEW_ONLY) {
+          html += '<span class="match-time-readonly">' + (fTime ? escapeHtml(fTime) : '—') + '</span>';
+          html += '<span class="match-court-readonly">' + (fCourt ? 'Court ' + fCourt : '—') + '</span>';
+        } else {
+          var fSel0 = !fCourt ? ' selected' : '';
+          var fSel1 = fCourt === 1 ? ' selected' : '';
+          var fSel2 = fCourt === 2 ? ' selected' : '';
+          var fSel3 = fCourt === 3 ? ' selected' : '';
+          html += '<span class="match-time-wrap"><input type="time" class="knockout-time-input" data-cat="' + escapeHtml(category) + '" data-km="6" value="' + escapeHtml(fTime) + '" aria-label="Final time"></span>';
+          html += '<span class="match-court-wrap"><select class="knockout-court-select" data-cat="' + escapeHtml(category) + '" data-km="6" aria-label="Final court">';
+          html += '<option value=""' + fSel0 + '>Court —</option>';
+          html += '<option value="1"' + fSel1 + '>Court 1</option>';
+          html += '<option value="2"' + fSel2 + '>Court 2</option>';
+          html += '<option value="3"' + fSel3 + '>Court 3</option>';
+          html += '</select></span>';
+        }
+        html += '</div>';
         html += '</div></div>';
 
         html += '<div class="knockout-round"><h3 class="knockout-round-title">Champion</h3><div class="knockout-champion">—</div></div>';
         knockoutContainer.innerHTML = html;
+        if (!VIEW_ONLY) {
+          knockoutContainer.querySelectorAll('.knockout-time-input').forEach(function (input) {
+            input.addEventListener('change', function () {
+              var cat = input.getAttribute('data-cat');
+              var km = parseInt(input.getAttribute('data-km'), 10);
+              var row = input.closest('.knockout-match');
+              var courtSel = row.querySelector('.knockout-court-select');
+              var courtVal = courtSel && courtSel.value !== '' ? parseInt(courtSel.value, 10) : null;
+              var timeVal = input.value ? input.value : null;
+              saveKnockoutMeta(cat, km, timeVal, courtVal);
+              renderKnockoutPhase();
+            });
+          });
+          knockoutContainer.querySelectorAll('.knockout-court-select').forEach(function (sel) {
+            sel.addEventListener('change', function () {
+              var cat = sel.getAttribute('data-cat');
+              var km = parseInt(sel.getAttribute('data-km'), 10);
+              var row = sel.closest('.knockout-match');
+              var timeIn = row.querySelector('.knockout-time-input');
+              var timeVal = timeIn && timeIn.value ? timeIn.value : null;
+              var courtVal = sel.value === '' ? null : parseInt(sel.value, 10);
+              saveKnockoutMeta(cat, km, timeVal, courtVal);
+              renderKnockoutPhase();
+            });
+          });
+        }
       }
 
       function switchPhase() {
