@@ -847,16 +847,19 @@
           var qDisp2 = qS2 == null ? '—' : String(qS2);
           html += '<div class="knockout-match"><span class="knockout-match-label">QF' + (qi + 1) + '</span>';
           if (VIEW_ONLY) {
-            html += '<div class="knockout-match-slots"><div class="knockout-slot">' + escapeHtml(la) + '</div><div class="knockout-vs">vs</div><div class="knockout-slot">' + escapeHtml(lb) + '</div></div>';
+            html += '<div class="knockout-match-slots"><div class="knockout-slot">' + escapeHtml(la) + '</div><span class="match-score-readonly"><span class="match-score-num">' + qDisp1 + '</span><span class="match-score-sep">–</span><span class="match-score-num">' + qDisp2 + '</span></span><div class="knockout-slot">' + escapeHtml(lb) + '</div></div>';
           } else {
             html += '<div class="knockout-match-slots">';
             html += '<input type="text" class="knockout-qf-name-input knockout-slot" data-cat="' + escapeHtml(category) + '" data-slot="' + (qi * 2) + '" value="' + escapeHtml(la) + '" aria-label="Quarter-final ' + (qi + 1) + ' first player">';
-            html += '<div class="knockout-vs">vs</div>';
+            html += '<span class="match-score-input-wrap">';
+            html += '<input type="number" min="0" max="7" class="knockout-score-input match-score-input" data-cat="' + escapeHtml(category) + '" data-km="' + qi + '" data-side="1" value="' + (qS1 == null ? '' : qS1) + '" placeholder="-" aria-label="Quarter-final score first player">';
+            html += '<span class="match-score-sep">–</span>';
+            html += '<input type="number" min="0" max="7" class="knockout-score-input match-score-input" data-cat="' + escapeHtml(category) + '" data-km="' + qi + '" data-side="2" value="' + (qS2 == null ? '' : qS2) + '" placeholder="-" aria-label="Quarter-final score second player">';
+            html += '</span>';
             html += '<input type="text" class="knockout-qf-name-input knockout-slot" data-cat="' + escapeHtml(category) + '" data-slot="' + (qi * 2 + 1) + '" value="' + escapeHtml(lb) + '" aria-label="Quarter-final ' + (qi + 1) + ' second player">';
             html += '</div>';
           }
           if (VIEW_ONLY) {
-            html += '<span class="match-score-readonly"><span class="match-score-num">' + qDisp1 + '</span><span class="match-score-sep">–</span><span class="match-score-num">' + qDisp2 + '</span></span>';
             html += '<span class="match-time-readonly">' + (qTime ? escapeHtml(qTime) : '—') + '</span>';
             html += '<span class="match-court-readonly">' + (qCourt ? 'Court ' + qCourt : '—') + '</span>';
           } else {
@@ -871,11 +874,6 @@
             html += '<option value="2"' + qSel2 + '>Court 2</option>';
             html += '<option value="3"' + qSel3 + '>Court 3</option>';
             html += '</select></span>';
-            html += '<span class="match-score-input-wrap">';
-            html += '<input type="number" min="0" max="7" class="knockout-score-input match-score-input" data-cat="' + escapeHtml(category) + '" data-km="' + qi + '" data-side="1" value="' + (qS1 == null ? '' : qS1) + '" placeholder="-" aria-label="Quarter-final score first player">';
-            html += '<span class="match-score-sep">–</span>';
-            html += '<input type="number" min="0" max="7" class="knockout-score-input match-score-input" data-cat="' + escapeHtml(category) + '" data-km="' + qi + '" data-side="2" value="' + (qS2 == null ? '' : qS2) + '" placeholder="-" aria-label="Quarter-final score second player">';
-            html += '</span>';
           }
           html += '</div>';
         }
@@ -902,12 +900,19 @@
           var sfS2 = normalizeKnockoutScore(sfMeta.s2);
           var sfDisp1 = sfS1 == null ? '—' : String(sfS1);
           var sfDisp2 = sfS2 == null ? '—' : String(sfS2);
-          html += '<div class="knockout-match"><span class="knockout-match-label">' + sfLabels[sfi][0] + '</span><div class="knockout-match-slots"><div class="knockout-slot">' + sfLabels[sfi][1] + '</div><div class="knockout-vs">vs</div><div class="knockout-slot">' + sfLabels[sfi][2] + '</div></div>';
+          html += '<div class="knockout-match"><span class="knockout-match-label">' + sfLabels[sfi][0] + '</span><div class="knockout-match-slots"><div class="knockout-slot">' + sfLabels[sfi][1] + '</div>';
           if (VIEW_ONLY) {
             html += '<span class="match-score-readonly"><span class="match-score-num">' + sfDisp1 + '</span><span class="match-score-sep">–</span><span class="match-score-num">' + sfDisp2 + '</span></span>';
+            html += '<div class="knockout-slot">' + sfLabels[sfi][2] + '</div></div>';
             html += '<span class="match-time-readonly">' + (sfTime ? escapeHtml(sfTime) : '—') + '</span>';
             html += '<span class="match-court-readonly">' + (sfCourt ? 'Court ' + sfCourt : '—') + '</span>';
           } else {
+            html += '<span class="match-score-input-wrap">';
+            html += '<input type="number" min="0" max="7" class="knockout-score-input match-score-input" data-cat="' + escapeHtml(category) + '" data-km="' + (4 + sfi) + '" data-side="1" value="' + (sfS1 == null ? '' : sfS1) + '" placeholder="-" aria-label="Semi-final score first player">';
+            html += '<span class="match-score-sep">–</span>';
+            html += '<input type="number" min="0" max="7" class="knockout-score-input match-score-input" data-cat="' + escapeHtml(category) + '" data-km="' + (4 + sfi) + '" data-side="2" value="' + (sfS2 == null ? '' : sfS2) + '" placeholder="-" aria-label="Semi-final score second player">';
+            html += '</span>';
+            html += '<div class="knockout-slot">' + sfLabels[sfi][2] + '</div></div>';
             var sfSel0 = !sfCourt ? ' selected' : '';
             var sfSel1 = sfCourt === 1 ? ' selected' : '';
             var sfSel2 = sfCourt === 2 ? ' selected' : '';
@@ -919,11 +924,6 @@
             html += '<option value="2"' + sfSel2 + '>Court 2</option>';
             html += '<option value="3"' + sfSel3 + '>Court 3</option>';
             html += '</select></span>';
-            html += '<span class="match-score-input-wrap">';
-            html += '<input type="number" min="0" max="7" class="knockout-score-input match-score-input" data-cat="' + escapeHtml(category) + '" data-km="' + (4 + sfi) + '" data-side="1" value="' + (sfS1 == null ? '' : sfS1) + '" placeholder="-" aria-label="Semi-final score first player">';
-            html += '<span class="match-score-sep">–</span>';
-            html += '<input type="number" min="0" max="7" class="knockout-score-input match-score-input" data-cat="' + escapeHtml(category) + '" data-km="' + (4 + sfi) + '" data-side="2" value="' + (sfS2 == null ? '' : sfS2) + '" placeholder="-" aria-label="Semi-final score second player">';
-            html += '</span>';
           }
           html += '</div>';
         }
@@ -945,12 +945,19 @@
         var fDisp2 = fS2 == null ? '—' : String(fS2);
         var finalP1 = sfWinners[0] || 'Winner SF1';
         var finalP2 = sfWinners[1] || 'Winner SF2';
-        html += '<div class="knockout-match"><span class="knockout-match-label">Final</span><div class="knockout-match-slots"><div class="knockout-slot">' + finalP1 + '</div><div class="knockout-vs">vs</div><div class="knockout-slot">' + finalP2 + '</div></div>';
+        html += '<div class="knockout-match"><span class="knockout-match-label">Final</span><div class="knockout-match-slots"><div class="knockout-slot">' + finalP1 + '</div>';
         if (VIEW_ONLY) {
           html += '<span class="match-score-readonly"><span class="match-score-num">' + fDisp1 + '</span><span class="match-score-sep">–</span><span class="match-score-num">' + fDisp2 + '</span></span>';
+          html += '<div class="knockout-slot">' + finalP2 + '</div></div>';
           html += '<span class="match-time-readonly">' + (fTime ? escapeHtml(fTime) : '—') + '</span>';
           html += '<span class="match-court-readonly">' + (fCourt ? 'Court ' + fCourt : '—') + '</span>';
         } else {
+          html += '<span class="match-score-input-wrap">';
+          html += '<input type="number" min="0" max="7" class="knockout-score-input match-score-input" data-cat="' + escapeHtml(category) + '" data-km="6" data-side="1" value="' + (fS1 == null ? '' : fS1) + '" placeholder="-" aria-label="Final score first player">';
+          html += '<span class="match-score-sep">–</span>';
+          html += '<input type="number" min="0" max="7" class="knockout-score-input match-score-input" data-cat="' + escapeHtml(category) + '" data-km="6" data-side="2" value="' + (fS2 == null ? '' : fS2) + '" placeholder="-" aria-label="Final score second player">';
+          html += '</span>';
+          html += '<div class="knockout-slot">' + finalP2 + '</div></div>';
           var fSel0 = !fCourt ? ' selected' : '';
           var fSel1 = fCourt === 1 ? ' selected' : '';
           var fSel2 = fCourt === 2 ? ' selected' : '';
@@ -962,11 +969,6 @@
           html += '<option value="2"' + fSel2 + '>Court 2</option>';
           html += '<option value="3"' + fSel3 + '>Court 3</option>';
           html += '</select></span>';
-          html += '<span class="match-score-input-wrap">';
-          html += '<input type="number" min="0" max="7" class="knockout-score-input match-score-input" data-cat="' + escapeHtml(category) + '" data-km="6" data-side="1" value="' + (fS1 == null ? '' : fS1) + '" placeholder="-" aria-label="Final score first player">';
-          html += '<span class="match-score-sep">–</span>';
-          html += '<input type="number" min="0" max="7" class="knockout-score-input match-score-input" data-cat="' + escapeHtml(category) + '" data-km="6" data-side="2" value="' + (fS2 == null ? '' : fS2) + '" placeholder="-" aria-label="Final score second player">';
-          html += '</span>';
         }
         html += '</div>';
         html += '</div></div>';
