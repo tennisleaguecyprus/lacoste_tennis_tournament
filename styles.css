@@ -747,6 +747,34 @@ footer a:hover {
   color: var(--text);
 }
 
+.knockout-slot-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.knockout-slot-input {
+  width: 100%;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  text-align: center;
+  color: var(--text);
+  font-size: 0.95rem;
+}
+
+.knockout-slot-input:focus {
+  outline: 2px solid rgba(45, 90, 39, 0.25);
+  border-radius: 4px;
+}
+
+.knockout-forfeit-note {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #8b1e1e;
+}
+
 .knockout-vs {
   font-size: 0.85rem;
   color: var(--green);

@@ -226,20 +226,21 @@
         }
       }
 
-      function saveKnockoutMeta(category, matchIndex, time, court, s1, s2) {
+      function saveKnockoutMeta(category, matchIndex, time, court, s1, s2, forfeit) {
         try {
           var saved = localStorage.getItem(MATCHES_KEY);
           var data = saved ? JSON.parse(saved) : {};
           var key = category + '_knockout';
           if (!data[key]) data[key] = [];
           while (data[key].length <= matchIndex) {
-            data[key].push({ time: null, court: null, s1: null, s2: null });
+            data[key].push({ time: null, court: null, s1: null, s2: null, forfeit: null });
           }
           var rec = data[key][matchIndex] || {};
           if (time !== undefined) rec.time = time;
           if (court !== undefined) rec.court = court === null || court === '' ? null : court;
           if (s1 !== undefined) rec.s1 = s1;
           if (s2 !== undefined) rec.s2 = s2;
+          if (forfeit !== undefined) rec.forfeit = forfeit;
           data[key][matchIndex] = rec;
           localStorage.setItem(MATCHES_KEY, JSON.stringify(data));
           scheduleCloudPush();
@@ -447,12 +448,28 @@
         return isNaN(n) ? null : n;
       }
 
-      function knockoutWinnerName(p1, p2, s1, s2) {
+      function normalizeForfeit(v) {
+        if (v === 1 || v === 2) return v;
+        if (v === '1' || v === '2') return parseInt(v, 10);
+        return null;
+      }
+
+      function knockoutWinnerName(p1, p2, s1, s2, forfeit, matchIndex) {
+        var ff = normalizeForfeit(forfeit);
+        if (ff === 1) return p2;
+        if (ff === 2) return p1;
         if (typeof s1 !== 'number' || typeof s2 !== 'number') return null;
         if (s1 === s2) return null;
+        if (matchIndex === 6) {
+          var fHi = s1 > s2 ? s1 : s2;
+          var fLo = s1 > s2 ? s2 : s1;
+          var finalValid = fHi === 2 && (fLo === 0 || fLo === 1);
+          if (!finalValid) return null;
+          return s1 > s2 ? p1 : p2;
+        }
         var hi = s1 > s2 ? s1 : s2;
         var lo = s1 > s2 ? s2 : s1;
-        var valid = (hi === 6 && lo >= 0 && lo <= 4) || (hi === 7 && lo === 6);
+        var valid = (hi === 6 && lo >= 0 && lo <= 4) || (hi === 7 && (lo === 5 || lo === 6));
         if (!valid) return null;
         return s1 > s2 ? p1 : p2;
       }
@@ -841,22 +858,23 @@
           var qMeta = koMeta[qi] || {};
           var qTime = (qMeta.time && String(qMeta.time).trim()) ? String(qMeta.time).substring(0, 5) : '';
           var qCourt = normalizeCourt(qMeta.court);
+          var qForfeit = normalizeForfeit(qMeta.forfeit);
           var qS1 = normalizeKnockoutScore(qMeta.s1);
           var qS2 = normalizeKnockoutScore(qMeta.s2);
           var qDisp1 = qS1 == null ? '—' : String(qS1);
           var qDisp2 = qS2 == null ? '—' : String(qS2);
           html += '<div class="knockout-match"><span class="knockout-match-label">QF' + (qi + 1) + '</span>';
           if (VIEW_ONLY) {
-            html += '<div class="knockout-match-slots"><div class="knockout-slot">' + escapeHtml(la) + '</div><span class="match-score-readonly"><span class="match-score-num">' + qDisp1 + '</span><span class="match-score-sep">–</span><span class="match-score-num">' + qDisp2 + '</span></span><div class="knockout-slot">' + escapeHtml(lb) + '</div></div>';
+            html += '<div class="knockout-match-slots"><div class="knockout-slot"><span>' + escapeHtml(la) + '</span>' + (qForfeit === 1 ? '<span class="knockout-forfeit-note">Forfeit</span>' : '') + '</div><span class="match-score-readonly"><span class="match-score-num">' + qDisp1 + '</span><span class="match-score-sep">–</span><span class="match-score-num">' + qDisp2 + '</span></span><div class="knockout-slot"><span>' + escapeHtml(lb) + '</span>' + (qForfeit === 2 ? '<span class="knockout-forfeit-note">Forfeit</span>' : '') + '</div></div>';
           } else {
             html += '<div class="knockout-match-slots">';
-            html += '<input type="text" class="knockout-qf-name-input knockout-slot" data-cat="' + escapeHtml(category) + '" data-slot="' + (qi * 2) + '" value="' + escapeHtml(la) + '" aria-label="Quarter-final ' + (qi + 1) + ' first player">';
+            html += '<div class="knockout-slot knockout-slot-stack"><input type="text" class="knockout-qf-name-input knockout-slot-input" data-cat="' + escapeHtml(category) + '" data-slot="' + (qi * 2) + '" value="' + escapeHtml(la) + '" aria-label="Quarter-final ' + (qi + 1) + ' first player">' + (qForfeit === 1 ? '<span class="knockout-forfeit-note">Forfeit</span>' : '') + '</div>';
             html += '<span class="match-score-input-wrap">';
             html += '<input type="number" min="0" max="7" class="knockout-score-input match-score-input" data-cat="' + escapeHtml(category) + '" data-km="' + qi + '" data-side="1" value="' + (qS1 == null ? '' : qS1) + '" placeholder="-" aria-label="Quarter-final score first player">';
             html += '<span class="match-score-sep">–</span>';
             html += '<input type="number" min="0" max="7" class="knockout-score-input match-score-input" data-cat="' + escapeHtml(category) + '" data-km="' + qi + '" data-side="2" value="' + (qS2 == null ? '' : qS2) + '" placeholder="-" aria-label="Quarter-final score second player">';
             html += '</span>';
-            html += '<input type="text" class="knockout-qf-name-input knockout-slot" data-cat="' + escapeHtml(category) + '" data-slot="' + (qi * 2 + 1) + '" value="' + escapeHtml(lb) + '" aria-label="Quarter-final ' + (qi + 1) + ' second player">';
+            html += '<div class="knockout-slot knockout-slot-stack"><input type="text" class="knockout-qf-name-input knockout-slot-input" data-cat="' + escapeHtml(category) + '" data-slot="' + (qi * 2 + 1) + '" value="' + escapeHtml(lb) + '" aria-label="Quarter-final ' + (qi + 1) + ' second player">' + (qForfeit === 2 ? '<span class="knockout-forfeit-note">Forfeit</span>' : '') + '</div>';
             html += '</div>';
           }
           if (VIEW_ONLY) {
@@ -874,6 +892,14 @@
             html += '<option value="2"' + qSel2 + '>Court 2</option>';
             html += '<option value="3"' + qSel3 + '>Court 3</option>';
             html += '</select></span>';
+            var qF0 = !qForfeit ? ' selected' : '';
+            var qF1 = qForfeit === 1 ? ' selected' : '';
+            var qF2 = qForfeit === 2 ? ' selected' : '';
+            html += '<span class="match-court-wrap"><select class="knockout-forfeit-select" data-cat="' + escapeHtml(category) + '" data-km="' + qi + '" aria-label="Quarter-final forfeit">';
+            html += '<option value=""' + qF0 + '>No forfeit</option>';
+            html += '<option value="1"' + qF1 + '>Player 1 forfeits</option>';
+            html += '<option value="2"' + qF2 + '>Player 2 forfeits</option>';
+            html += '</select></span>';
           }
           html += '</div>';
         }
@@ -884,7 +910,7 @@
           var ql = qfLabels[qwi * 2] || 'Pending';
           var qr = qfLabels[qwi * 2 + 1] || 'Pending';
           var qm = koMeta[qwi] || {};
-          qfWinners[qwi] = knockoutWinnerName(ql, qr, normalizeKnockoutScore(qm.s1), normalizeKnockoutScore(qm.s2));
+          qfWinners[qwi] = knockoutWinnerName(ql, qr, normalizeKnockoutScore(qm.s1), normalizeKnockoutScore(qm.s2), qm.forfeit, qwi);
         }
 
         html += '<div class="knockout-round"><h3 class="knockout-round-title">Semi-finals — Sunday 29th March</h3><div class="knockout-matches">';
@@ -896,14 +922,15 @@
           var sfMeta = koMeta[4 + sfi] || {};
           var sfTime = (sfMeta.time && String(sfMeta.time).trim()) ? String(sfMeta.time).substring(0, 5) : '';
           var sfCourt = normalizeCourt(sfMeta.court);
+          var sfForfeit = normalizeForfeit(sfMeta.forfeit);
           var sfS1 = normalizeKnockoutScore(sfMeta.s1);
           var sfS2 = normalizeKnockoutScore(sfMeta.s2);
           var sfDisp1 = sfS1 == null ? '—' : String(sfS1);
           var sfDisp2 = sfS2 == null ? '—' : String(sfS2);
-          html += '<div class="knockout-match"><span class="knockout-match-label">' + sfLabels[sfi][0] + '</span><div class="knockout-match-slots"><div class="knockout-slot">' + sfLabels[sfi][1] + '</div>';
+          html += '<div class="knockout-match"><span class="knockout-match-label">' + sfLabels[sfi][0] + '</span><div class="knockout-match-slots"><div class="knockout-slot"><span>' + sfLabels[sfi][1] + '</span>' + (sfForfeit === 1 ? '<span class="knockout-forfeit-note">Forfeit</span>' : '') + '</div>';
           if (VIEW_ONLY) {
             html += '<span class="match-score-readonly"><span class="match-score-num">' + sfDisp1 + '</span><span class="match-score-sep">–</span><span class="match-score-num">' + sfDisp2 + '</span></span>';
-            html += '<div class="knockout-slot">' + sfLabels[sfi][2] + '</div></div>';
+            html += '<div class="knockout-slot"><span>' + sfLabels[sfi][2] + '</span>' + (sfForfeit === 2 ? '<span class="knockout-forfeit-note">Forfeit</span>' : '') + '</div></div>';
             html += '<span class="match-time-readonly">' + (sfTime ? escapeHtml(sfTime) : '—') + '</span>';
             html += '<span class="match-court-readonly">' + (sfCourt ? 'Court ' + sfCourt : '—') + '</span>';
           } else {
@@ -912,7 +939,7 @@
             html += '<span class="match-score-sep">–</span>';
             html += '<input type="number" min="0" max="7" class="knockout-score-input match-score-input" data-cat="' + escapeHtml(category) + '" data-km="' + (4 + sfi) + '" data-side="2" value="' + (sfS2 == null ? '' : sfS2) + '" placeholder="-" aria-label="Semi-final score second player">';
             html += '</span>';
-            html += '<div class="knockout-slot">' + sfLabels[sfi][2] + '</div></div>';
+            html += '<div class="knockout-slot"><span>' + sfLabels[sfi][2] + '</span>' + (sfForfeit === 2 ? '<span class="knockout-forfeit-note">Forfeit</span>' : '') + '</div></div>';
             var sfSel0 = !sfCourt ? ' selected' : '';
             var sfSel1 = sfCourt === 1 ? ' selected' : '';
             var sfSel2 = sfCourt === 2 ? ' selected' : '';
@@ -924,6 +951,14 @@
             html += '<option value="2"' + sfSel2 + '>Court 2</option>';
             html += '<option value="3"' + sfSel3 + '>Court 3</option>';
             html += '</select></span>';
+            var sfF0 = !sfForfeit ? ' selected' : '';
+            var sfF1 = sfForfeit === 1 ? ' selected' : '';
+            var sfF2 = sfForfeit === 2 ? ' selected' : '';
+            html += '<span class="match-court-wrap"><select class="knockout-forfeit-select" data-cat="' + escapeHtml(category) + '" data-km="' + (4 + sfi) + '" aria-label="Semi-final forfeit">';
+            html += '<option value=""' + sfF0 + '>No forfeit</option>';
+            html += '<option value="1"' + sfF1 + '>Player 1 forfeits</option>';
+            html += '<option value="2"' + sfF2 + '>Player 2 forfeits</option>';
+            html += '</select></span>';
           }
           html += '</div>';
         }
@@ -932,32 +967,33 @@
         var sfWinners = [];
         for (var swi = 0; swi < 2; swi++) {
           var sm = koMeta[4 + swi] || {};
-          sfWinners[swi] = knockoutWinnerName(sfLabels[swi][1], sfLabels[swi][2], normalizeKnockoutScore(sm.s1), normalizeKnockoutScore(sm.s2));
+          sfWinners[swi] = knockoutWinnerName(sfLabels[swi][1], sfLabels[swi][2], normalizeKnockoutScore(sm.s1), normalizeKnockoutScore(sm.s2), sm.forfeit, 4 + swi);
         }
 
         html += '<div class="knockout-round"><h3 class="knockout-round-title">Final — Sunday 29th March</h3><div class="knockout-matches">';
         var fMeta = koMeta[6] || {};
         var fTime = (fMeta.time && String(fMeta.time).trim()) ? String(fMeta.time).substring(0, 5) : '';
         var fCourt = normalizeCourt(fMeta.court);
+        var fForfeit = normalizeForfeit(fMeta.forfeit);
         var fS1 = normalizeKnockoutScore(fMeta.s1);
         var fS2 = normalizeKnockoutScore(fMeta.s2);
         var fDisp1 = fS1 == null ? '—' : String(fS1);
         var fDisp2 = fS2 == null ? '—' : String(fS2);
         var finalP1 = sfWinners[0] || 'Winner SF1';
         var finalP2 = sfWinners[1] || 'Winner SF2';
-        html += '<div class="knockout-match"><span class="knockout-match-label">Final</span><div class="knockout-match-slots"><div class="knockout-slot">' + finalP1 + '</div>';
+        html += '<div class="knockout-match"><span class="knockout-match-label">Final</span><div class="knockout-match-slots"><div class="knockout-slot"><span>' + finalP1 + '</span>' + (fForfeit === 1 ? '<span class="knockout-forfeit-note">Forfeit</span>' : '') + '</div>';
         if (VIEW_ONLY) {
           html += '<span class="match-score-readonly"><span class="match-score-num">' + fDisp1 + '</span><span class="match-score-sep">–</span><span class="match-score-num">' + fDisp2 + '</span></span>';
-          html += '<div class="knockout-slot">' + finalP2 + '</div></div>';
+          html += '<div class="knockout-slot"><span>' + finalP2 + '</span>' + (fForfeit === 2 ? '<span class="knockout-forfeit-note">Forfeit</span>' : '') + '</div></div>';
           html += '<span class="match-time-readonly">' + (fTime ? escapeHtml(fTime) : '—') + '</span>';
           html += '<span class="match-court-readonly">' + (fCourt ? 'Court ' + fCourt : '—') + '</span>';
         } else {
           html += '<span class="match-score-input-wrap">';
-          html += '<input type="number" min="0" max="7" class="knockout-score-input match-score-input" data-cat="' + escapeHtml(category) + '" data-km="6" data-side="1" value="' + (fS1 == null ? '' : fS1) + '" placeholder="-" aria-label="Final score first player">';
+          html += '<input type="number" min="0" max="2" class="knockout-score-input match-score-input" data-cat="' + escapeHtml(category) + '" data-km="6" data-side="1" value="' + (fS1 == null ? '' : fS1) + '" placeholder="-" aria-label="Final score first player">';
           html += '<span class="match-score-sep">–</span>';
-          html += '<input type="number" min="0" max="7" class="knockout-score-input match-score-input" data-cat="' + escapeHtml(category) + '" data-km="6" data-side="2" value="' + (fS2 == null ? '' : fS2) + '" placeholder="-" aria-label="Final score second player">';
+          html += '<input type="number" min="0" max="2" class="knockout-score-input match-score-input" data-cat="' + escapeHtml(category) + '" data-km="6" data-side="2" value="' + (fS2 == null ? '' : fS2) + '" placeholder="-" aria-label="Final score second player">';
           html += '</span>';
-          html += '<div class="knockout-slot">' + finalP2 + '</div></div>';
+          html += '<div class="knockout-slot"><span>' + finalP2 + '</span>' + (fForfeit === 2 ? '<span class="knockout-forfeit-note">Forfeit</span>' : '') + '</div></div>';
           var fSel0 = !fCourt ? ' selected' : '';
           var fSel1 = fCourt === 1 ? ' selected' : '';
           var fSel2 = fCourt === 2 ? ' selected' : '';
@@ -969,11 +1005,19 @@
           html += '<option value="2"' + fSel2 + '>Court 2</option>';
           html += '<option value="3"' + fSel3 + '>Court 3</option>';
           html += '</select></span>';
+          var fF0 = !fForfeit ? ' selected' : '';
+          var fF1 = fForfeit === 1 ? ' selected' : '';
+          var fF2 = fForfeit === 2 ? ' selected' : '';
+          html += '<span class="match-court-wrap"><select class="knockout-forfeit-select" data-cat="' + escapeHtml(category) + '" data-km="6" aria-label="Final forfeit">';
+          html += '<option value=""' + fF0 + '>No forfeit</option>';
+          html += '<option value="1"' + fF1 + '>Player 1 forfeits</option>';
+          html += '<option value="2"' + fF2 + '>Player 2 forfeits</option>';
+          html += '</select></span>';
         }
         html += '</div>';
         html += '</div></div>';
 
-        var champion = knockoutWinnerName(finalP1, finalP2, fS1, fS2) || '—';
+        var champion = knockoutWinnerName(finalP1, finalP2, fS1, fS2, fForfeit, 6) || '—';
         html += '<div class="knockout-round"><h3 class="knockout-round-title">Champion</h3><div class="knockout-champion">' + escapeHtml(champion) + '</div></div>';
         knockoutContainer.innerHTML = html;
         if (!VIEW_ONLY) {
@@ -1008,8 +1052,11 @@
               var s2 = in2 && in2.value !== '' ? parseInt(in2.value, 10) : null;
               if (isNaN(s1)) s1 = null;
               if (isNaN(s2)) s2 = null;
+              var ffSel = row.querySelector('.knockout-forfeit-select');
+              var ffVal = ffSel && ffSel.value ? parseInt(ffSel.value, 10) : null;
+              if (isNaN(ffVal)) ffVal = null;
               var timeVal = input.value ? input.value : null;
-              saveKnockoutMeta(cat, km, timeVal, courtVal, s1, s2);
+              saveKnockoutMeta(cat, km, timeVal, courtVal, s1, s2, ffVal);
               renderKnockoutPhase();
             });
           });
@@ -1025,9 +1072,33 @@
               var s2 = in2 && in2.value !== '' ? parseInt(in2.value, 10) : null;
               if (isNaN(s1)) s1 = null;
               if (isNaN(s2)) s2 = null;
+              var ffSel = row.querySelector('.knockout-forfeit-select');
+              var ffVal = ffSel && ffSel.value ? parseInt(ffSel.value, 10) : null;
+              if (isNaN(ffVal)) ffVal = null;
               var timeVal = timeIn && timeIn.value ? timeIn.value : null;
               var courtVal = sel.value === '' ? null : parseInt(sel.value, 10);
-              saveKnockoutMeta(cat, km, timeVal, courtVal, s1, s2);
+              saveKnockoutMeta(cat, km, timeVal, courtVal, s1, s2, ffVal);
+              renderKnockoutPhase();
+            });
+          });
+          knockoutContainer.querySelectorAll('.knockout-forfeit-select').forEach(function (sel) {
+            sel.addEventListener('change', function () {
+              var cat = sel.getAttribute('data-cat');
+              var km = parseInt(sel.getAttribute('data-km'), 10);
+              var row = sel.closest('.knockout-match');
+              var in1 = row.querySelector('.knockout-score-input[data-side="1"]');
+              var in2 = row.querySelector('.knockout-score-input[data-side="2"]');
+              var s1 = in1 && in1.value !== '' ? parseInt(in1.value, 10) : null;
+              var s2 = in2 && in2.value !== '' ? parseInt(in2.value, 10) : null;
+              if (isNaN(s1)) s1 = null;
+              if (isNaN(s2)) s2 = null;
+              var timeIn = row.querySelector('.knockout-time-input');
+              var timeVal = timeIn && timeIn.value ? timeIn.value : null;
+              var courtSel = row.querySelector('.knockout-court-select');
+              var courtVal = courtSel && courtSel.value !== '' ? parseInt(courtSel.value, 10) : null;
+              var ffVal = sel.value ? parseInt(sel.value, 10) : null;
+              if (isNaN(ffVal)) ffVal = null;
+              saveKnockoutMeta(cat, km, timeVal, courtVal, s1, s2, ffVal);
               renderKnockoutPhase();
             });
           });
@@ -1046,7 +1117,10 @@
               var timeVal = timeIn && timeIn.value ? timeIn.value : null;
               var courtSel = row.querySelector('.knockout-court-select');
               var courtVal = courtSel && courtSel.value !== '' ? parseInt(courtSel.value, 10) : null;
-              saveKnockoutMeta(cat, km, timeVal, courtVal, s1, s2);
+              var ffSel = row.querySelector('.knockout-forfeit-select');
+              var ffVal = ffSel && ffSel.value ? parseInt(ffSel.value, 10) : null;
+              if (isNaN(ffVal)) ffVal = null;
+              saveKnockoutMeta(cat, km, timeVal, courtVal, s1, s2, ffVal);
               renderKnockoutPhase();
             });
           });
