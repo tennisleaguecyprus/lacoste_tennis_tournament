@@ -803,6 +803,73 @@ footer a:hover {
   .hero h2 {
     font-size: 1.5rem;
   }
+
+  /* Keep knockout rows inside cards on phones */
+  .knockout-round {
+    padding: 1rem 0.9rem;
+  }
+
+  .knockout-match {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .knockout-match-label {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .knockout-match-slots {
+    width: 100%;
+    flex-wrap: nowrap;
+    gap: 0.45rem;
+  }
+
+  .knockout-slot {
+    min-width: 0;
+    flex: 1 1 0;
+    padding: 0.3rem 0.35rem;
+    font-size: 0.88rem;
+  }
+
+  .knockout-slot-input {
+    font-size: 0.85rem;
+  }
+
+  .knockout-forfeit-note {
+    font-size: 0.65rem;
+  }
+
+  .knockout-match .match-score-input-wrap {
+    flex-shrink: 1;
+    min-width: 0;
+  }
+
+  .knockout-match .match-score-input {
+    width: 2rem;
+    font-size: 0.78rem;
+    padding: 0.15rem 0.15rem;
+  }
+
+  .knockout-match .match-time-wrap,
+  .knockout-match .match-court-wrap,
+  .knockout-match .match-time-readonly,
+  .knockout-match .match-court-readonly {
+    font-size: 0.78rem;
+  }
+
+  .knockout-match .match-time-input {
+    min-width: 3.8rem;
+    font-size: 0.78rem;
+    padding: 0.15rem 0.2rem;
+  }
+
+  .knockout-match .match-court-select,
+  .knockout-match .knockout-forfeit-select {
+    min-width: 4.5rem;
+    font-size: 0.72rem;
+    padding: 0.15rem 0.2rem;
+  }
 }
 
 /* Tighter layout on smartphones for schedule & standings */
